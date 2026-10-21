@@ -1,0 +1,60 @@
+// Modified for Norma.
+/*
+ * Public protocol snapshot, originally generated with Speakeasy (https://speakeasy.com).
+ * Maintained with public-contract.json; builds never import a private server schema.
+ */
+
+import * as z from "zod/v4-mini";
+import { safeParse } from "../lib/schemas.js";
+import { Result as SafeParseResult } from "../types/fp.js";
+import * as types from "../types/primitives.js";
+import { Agent, Agent$inboundSchema } from "./agent.js";
+import { SDKValidationError } from "./errors/sdk-validation-error.js";
+import {
+  EvaluatorSchema,
+  EvaluatorSchema$inboundSchema,
+} from "./evaluator-schema.js";
+import { StepSchema, StepSchema$inboundSchema } from "./step-schema.js";
+
+/**
+ * Response containing agent details and registered steps.
+ */
+export type GetAgentResponse = {
+  /**
+   * Agent metadata for registration and tracking.
+   *
+   * @remarks
+   *
+   * An agent represents an AI system that can be protected and monitored.
+   * Each agent has a unique immutable name and can have multiple steps registered with it.
+   */
+  agent: Agent;
+  /**
+   * Custom evaluators registered with this agent
+   */
+  evaluators?: Array<EvaluatorSchema> | undefined;
+  /**
+   * Steps registered with this agent
+   */
+  steps: Array<StepSchema>;
+};
+
+/** @internal */
+export const GetAgentResponse$inboundSchema: z.ZodMiniType<
+  GetAgentResponse,
+  unknown
+> = z.object({
+  agent: Agent$inboundSchema,
+  evaluators: types.optional(z.array(EvaluatorSchema$inboundSchema)),
+  steps: z.array(StepSchema$inboundSchema),
+});
+
+export function getAgentResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<GetAgentResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => GetAgentResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'GetAgentResponse' from JSON`,
+  );
+}

@@ -1,0 +1,77 @@
+{
+  "execution_contract": "hosted-v1",
+  "allowed": false,
+  "confidence": 1.0,
+  "reason": "Synthetic proposal needs revision",
+  "matches": [
+    {
+      "rule_id": 6,
+      "rule_name": "advisory-check",
+      "check_id": "execution-advisory",
+      "action": "observe",
+      "result": {
+        "matched": true,
+        "confidence": 1.0,
+        "message": "Advisory only"
+      }
+    },
+    {
+      "rule_id": 7,
+      "rule_name": "proposal-check",
+      "check_id": "execution-blocking",
+      "action": "deny",
+      "steering_context": {
+        "message": "Supply a reviewed harmless proposal"
+      },
+      "result": {
+        "matched": true,
+        "confidence": 1.0,
+        "message": "Review is missing"
+      }
+    }
+  ],
+  "errors": [],
+  "recovery_feedback": [
+    {
+      "rule_id": 6,
+      "check_id": "execution-advisory",
+      "outcome": "matched",
+      "reason": "criterion_triggered",
+      "condition_ids": [
+        "advisory"
+      ],
+      "condition_path": "root.0",
+      "condition_outcome": "matched",
+      "negated": false,
+      "evidence": []
+    },
+    {
+      "rule_id": 7,
+      "check_id": "execution-blocking",
+      "outcome": "matched",
+      "reason": "criterion_triggered",
+      "condition_ids": [
+        "reviewed"
+      ],
+      "condition_path": "root.1.not",
+      "condition_outcome": "not_matched",
+      "negated": true,
+      "observation_id": "observation-synthetic",
+      "definition_fingerprint": "definition-synthetic",
+      "evidence_fingerprint": "bundle-synthetic",
+      "evidence": [
+        {
+          "binding": "proposal",
+          "path": "input.proposal",
+          "required": true,
+          "unresolved": false,
+          "status": "present",
+          "origin": "caller_asserted",
+          "source_id": "synthetic-proposal",
+          "source_version": "revision-1",
+          "fingerprint": "evidence-synthetic"
+        }
+      ]
+    }
+  ]
+}

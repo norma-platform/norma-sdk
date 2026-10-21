@@ -1,0 +1,1474 @@
+{
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 119,
+      "sha256": "5a6f0801805a7dbc7075fcc40f06b4d2500bcdf8f3112a88b51cf3776c3c6e44"
+    },
+    {
+      "path": "EXPORT_POLICY.md",
+      "bytes": 4089,
+      "sha256": "13b13287207d7d70b60d1df2bd687cc9b64e8c502e0aa67c459a42c7139c4bdc"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 10173,
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
+    },
+    {
+      "path": "Makefile",
+      "bytes": 238,
+      "sha256": "20ce51614aefdcb53ba083494daa098a0d9b7c284633e6fc35fd2928e4561d88"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4225,
+      "sha256": "de8657f2f520ecd1026378c8421454ee4bd99fe94b34087aec3066c0bddda68d"
+    },
+    {
+      "path": "docs/migration.md",
+      "bytes": 6824,
+      "sha256": "aac160da5b526260577d01072d7eadb1696b0ddec0d148d82197a9cfd1d28448"
+    },
+    {
+      "path": "docs/tenancy.md",
+      "bytes": 1956,
+      "sha256": "2aaa8d7e3413c2a59d635f9c3c51b52a9eca2950b4863baed0bbef965b8f493f"
+    },
+    {
+      "path": "python/.gitignore",
+      "bytes": 89,
+      "sha256": "02e5548198a72c4cc5085b21ad880c4c049776ee2f23845f30ebc60f3dcd6da6"
+    },
+    {
+      "path": "python/GOOGLE_ADK.md",
+      "bytes": 5153,
+      "sha256": "159a5e668a57fe241f7b412568c0b33902f7b6c9bac333f4c77c27f37053996d"
+    },
+    {
+      "path": "python/LICENSE",
+      "bytes": 10173,
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
+    },
+    {
+      "path": "python/Makefile",
+      "bytes": 1071,
+      "sha256": "bd9af95e1ef552fb815b157522f0fb17a585cfe1e3dc68309737fc0fac99cebe"
+    },
+    {
+      "path": "python/NOTICE",
+      "bytes": 432,
+      "sha256": "6600ac084ea78dbf38b9be27e7f75d8c25b5676cec398161d375ea447c08281f"
+    },
+    {
+      "path": "python/OPENAI_AGENTS.md",
+      "bytes": 7070,
+      "sha256": "d3189a443ad90745be9bd90fdce8dcbd328b3b87fb02d2fb4580172a8f7ed18d"
+    },
+    {
+      "path": "python/README.md",
+      "bytes": 11008,
+      "sha256": "bdbf38f30e2180d8649d459b49be6d16f1823ec0d53aef5a388eded31d2ccdde"
+    },
+    {
+      "path": "python/examples/check_agent.py",
+      "bytes": 516,
+      "sha256": "dcece4acc5161f835e11c44242acafd5650f43b92fdaa75eb50bf5b6a8144d65"
+    },
+    {
+      "path": "python/pyproject.toml",
+      "bytes": 2880,
+      "sha256": "f9e7b9d0c08f2c8bc4b2fea485ed3f97656acdf80fe7c06532e5cd8eee63cc0b"
+    },
+    {
+      "path": "python/scripts/check_google_adk.py",
+      "bytes": 12519,
+      "sha256": "3d92f5a62e789ef89025668a17e96b6bade44e042a4551a60b548c5c8feb7c16"
+    },
+    {
+      "path": "python/scripts/check_installed_wheel.py",
+      "bytes": 5778,
+      "sha256": "02447d004a8bba7bd085dc6db6c0cfbda530dd6917ebd33ef1269bf1f533bbb9"
+    },
+    {
+      "path": "python/scripts/run_google_adk_checks.py",
+      "bytes": 1650,
+      "sha256": "5b74df92b77e79f50e7d341df55ad12601a1714f32a1516315e16bbd2fa3810a"
+    },
+    {
+      "path": "python/scripts/run_openai_agents_checks.py",
+      "bytes": 2629,
+      "sha256": "934c61ac0b9e1068cc804949eeefd30c0c34d249f8249aa2c7d8f2cda921bd47"
+    },
+    {
+      "path": "python/src/norma/__init__.py",
+      "bytes": 27840,
+      "sha256": "1cf81e93894c6215f6304022d85820ce699ad41e0abebdb1b2dbbbdc6f627fb5"
+    },
+    {
+      "path": "python/src/norma/_check_events.py",
+      "bytes": 9618,
+      "sha256": "278013f7b99b6dd44ec11c17fcaec79697eafca8f8be4027f0d1c5c9e15c94ad"
+    },
+    {
+      "path": "python/src/norma/_checks.py",
+      "bytes": 10308,
+      "sha256": "40b484410861de35b9c17963d125bd8a043de8961d2136404512f1dcb5c1c4d6"
+    },
+    {
+      "path": "python/src/norma/_observed_state.py",
+      "bytes": 3571,
+      "sha256": "6f4e404efd6d2c129c0aa0d4ceded605a9870356a663558abb634b554f983b88"
+    },
+    {
+      "path": "python/src/norma/_rule_registry.py",
+      "bytes": 6829,
+      "sha256": "b99863d611fb9b928724ef6cb6f23ffb423f942aaed8e008e898aca5a32c2f55"
+    },
+    {
+      "path": "python/src/norma/_schema_derivation.py",
+      "bytes": 7784,
+      "sha256": "df75449a41b835df825f9b3ec28a193bfd9d4fdc1fda976ec42c5d1d8917ce80"
+    },
+    {
+      "path": "python/src/norma/_state.py",
+      "bytes": 1549,
+      "sha256": "482a7f22dede0a51042081fdac2508e316be2d4049496e5e63d64cb8e1ac26bf"
+    },
+    {
+      "path": "python/src/norma/_telemetry/__init__.py",
+      "bytes": 1080,
+      "sha256": "2070ec0a6da3e1a1f4e36c91fda6dbde70df6f700a409142227b06d54570adb1"
+    },
+    {
+      "path": "python/src/norma/_telemetry/sink_selection.py",
+      "bytes": 3106,
+      "sha256": "13fc628dd28ae90636e2fd98af1fd41d8badc73392a92b5a20b1dde58dcc2f45"
+    },
+    {
+      "path": "python/src/norma/_telemetry/sinks.py",
+      "bytes": 2720,
+      "sha256": "7ad3542efc4d33092d513564c5f62217f45b008b35a4566677151a4f19b7dd21"
+    },
+    {
+      "path": "python/src/norma/_telemetry/trace_context.py",
+      "bytes": 1478,
+      "sha256": "b4a761fd328f64d32fc873a458544f8077e58abe0fc7a562c23c34016f3ad533"
+    },
+    {
+      "path": "python/src/norma/_wire/__init__.py",
+      "bytes": 100,
+      "sha256": "12130344bbb9e2ff5729ebc94ac85a836d743cf0f5ee07d01bfb0a0008d2da48"
+    },
+    {
+      "path": "python/src/norma/_wire/adapters.py",
+      "bytes": 1508,
+      "sha256": "8ca596f3670ff7b2506c28908dbd4789bd960a3a122ab686a92d88b888170295"
+    },
+    {
+      "path": "python/src/norma/_wire/checks.py",
+      "bytes": 8083,
+      "sha256": "089335c9e798b075c1b98645b33d9bb3b7dcdd7e4642c2b3a547b7cc2ca9c134"
+    },
+    {
+      "path": "python/src/norma/_wire/errors.py",
+      "bytes": 487,
+      "sha256": "13b6ba72e73d2a6662ab862217979c272b0887079664e84c1f19b3f5968fe733"
+    },
+    {
+      "path": "python/src/norma/_wire/exports.py",
+      "bytes": 471,
+      "sha256": "b8d696e7cd333f817c32010e5e76af0c36469a27fdd7512ccbd02fdc2737ff5c"
+    },
+    {
+      "path": "python/src/norma/_wire/operations.py",
+      "bytes": 7689,
+      "sha256": "3ce2868aced2f598e6a947cc9c84522253ba7d73485068cdd11297cd629b0dd1"
+    },
+    {
+      "path": "python/src/norma/_wire/recovery_feedback.py",
+      "bytes": 1495,
+      "sha256": "1967e24c48dc250746086024a06707d02dbf1a24faf7f07399614674d650555b"
+    },
+    {
+      "path": "python/src/norma/_wire/rules.py",
+      "bytes": 4501,
+      "sha256": "75b2ff4a7b5ebc1bbd6b8c504df54c28b887814550e46809fd0d933de0fbed0c"
+    },
+    {
+      "path": "python/src/norma/_wire/semantic.py",
+      "bytes": 3820,
+      "sha256": "2746e33b9a320b9aa1cb317e59ea7171ac72d4454906a5c95b665ba5cdaf11f5"
+    },
+    {
+      "path": "python/src/norma/_wire/verification.py",
+      "bytes": 2432,
+      "sha256": "be37acdcfc7a3270d6375d8d4abefb714fbb39f1fd7115f8ae0aa020bbd1b937"
+    },
+    {
+      "path": "python/src/norma/agents.py",
+      "bytes": 8248,
+      "sha256": "853c0c295887cbfefe3b6cc7b18419d07e6e45149181d407cb58d76d6d7665f1"
+    },
+    {
+      "path": "python/src/norma/checkpoints.py",
+      "bytes": 39760,
+      "sha256": "fc99aac1ab18d91efac32607737454c0723b27960a3a133c29585c8639bd019c"
+    },
+    {
+      "path": "python/src/norma/checks.py",
+      "bytes": 1010,
+      "sha256": "ff70723fb671063dbff7a66005cd6a04e5c6c09965588c14d23940e8eb279721"
+    },
+    {
+      "path": "python/src/norma/cli.py",
+      "bytes": 2944,
+      "sha256": "2b1220f1c452dc06c9f62cb953edceb01bc8628e4db8ca09676fcb407d19e9c7"
+    },
+    {
+      "path": "python/src/norma/client.py",
+      "bytes": 4495,
+      "sha256": "a804c377163e165a6d993c89ab4e9543e52f0589438e21453af5058731fd23fb"
+    },
+    {
+      "path": "python/src/norma/configuration.py",
+      "bytes": 1969,
+      "sha256": "4cdd87fd5055b7cfea5469e6f1b2063035ae36fb0ecfbbfe9acd65a444526b58"
+    },
+    {
+      "path": "python/src/norma/errors.py",
+      "bytes": 7084,
+      "sha256": "675d1199c7b85549a0c77d075c822fa41e17cb4dedb8b3b0b0e92f0cefb99b72"
+    },
+    {
+      "path": "python/src/norma/finish.py",
+      "bytes": 10755,
+      "sha256": "fc5b89a28430da3c4344f7d096875eb130906993cb59fdd17e6d8b701c972e38"
+    },
+    {
+      "path": "python/src/norma/integrations/__init__.py",
+      "bytes": 59,
+      "sha256": "5c8bc39a889c7939576827ed0375a74ac639aecf5c5e5a3050ef24abd7ead559"
+    },
+    {
+      "path": "python/src/norma/integrations/_core.py",
+      "bytes": 4808,
+      "sha256": "27f5a6ee3aff59e1b56e4c1b3d731a6f49ef1f8d841f00edae1668b2c1769013"
+    },
+    {
+      "path": "python/src/norma/integrations/_tools.py",
+      "bytes": 1680,
+      "sha256": "d03c691e31be062ba94365ffaf60a62a313e204f78edd9a73e5095dcdbe1077f"
+    },
+    {
+      "path": "python/src/norma/integrations/google_adk/__init__.py",
+      "bytes": 391,
+      "sha256": "9cf8979a246d001f7dcbe383d1cfd41a4322a1c8b0cfbba341b11ccfd20698a2"
+    },
+    {
+      "path": "python/src/norma/integrations/google_adk/_extractors.py",
+      "bytes": 5543,
+      "sha256": "bf471c985dfa2301dbf0e9a871edcab6b8230564bf2d355394f4c93ad2e9493f"
+    },
+    {
+      "path": "python/src/norma/integrations/google_adk/plugin.py",
+      "bytes": 36513,
+      "sha256": "c922dddf8943ea2de2fe5f1efa93b33067dd5f4ba1357dc6040c94c3409b238b"
+    },
+    {
+      "path": "python/src/norma/integrations/openai_agents.py",
+      "bytes": 15774,
+      "sha256": "c20dd60b21f4a58ffe296650627e1733e962fd564f15fd8daff76b5db9d308c1"
+    },
+    {
+      "path": "python/src/norma/integrations/openai_agents_finish.py",
+      "bytes": 3924,
+      "sha256": "b6a9d221fa6d8b741b1166c681d729d5b60bbe780fa83d4e37741e6df2e202d4"
+    },
+    {
+      "path": "python/src/norma/integrations/pydantic_ai_finish.py",
+      "bytes": 4120,
+      "sha256": "c8fa19152a6e2d4d460a235ab11356102eb98ca990def199e8be1f9ac0fbd5a1"
+    },
+    {
+      "path": "python/src/norma/integrations/strands/README.md",
+      "bytes": 801,
+      "sha256": "836cccff81867fe5ec442469f86ecf6beb5de880c42bd32be278be93b5fa9821"
+    },
+    {
+      "path": "python/src/norma/integrations/strands/__init__.py",
+      "bytes": 589,
+      "sha256": "ee226340ed378dc5b800554738263832623efb1a8ed10e8a1e920c94b64a8a36"
+    },
+    {
+      "path": "python/src/norma/integrations/strands/plugin.py",
+      "bytes": 18068,
+      "sha256": "d03e2cce9417c520b86e12d3ceb6b214a094df287ca304db0edbcb844f27645d"
+    },
+    {
+      "path": "python/src/norma/integrations/strands/steering.py",
+      "bytes": 10642,
+      "sha256": "15b5422cc953d7a2d43fd295b140ea47d345c19c38d770bff7d3d8457ff17ef1"
+    },
+    {
+      "path": "python/src/norma/models/__init__.py",
+      "bytes": 1541,
+      "sha256": "498f0a07f8349f924272b7b2d6135ee5b0d9bf5797bcc7ec2d9439b64ab05d29"
+    },
+    {
+      "path": "python/src/norma/models/actions.py",
+      "bytes": 1978,
+      "sha256": "71f329a6b29b243e8d32881be4336d0177c9105ba89776ab304273430e2a24a9"
+    },
+    {
+      "path": "python/src/norma/models/agent.py",
+      "bytes": 6717,
+      "sha256": "4fac3affc44cf8cccedb74110ebf3741feed7415c1d2e78374438949dbea4ef7"
+    },
+    {
+      "path": "python/src/norma/models/base.py",
+      "bytes": 1794,
+      "sha256": "8c2915f9ef06d5748d60fd65f2ef4cc89c002b2d16e9eb17eb5549343503ea65"
+    },
+    {
+      "path": "python/src/norma/models/decisions.py",
+      "bytes": 1651,
+      "sha256": "9eb533973f62d25846710344b1159d861412ca97826e8ace89d4605a3f15b3aa"
+    },
+    {
+      "path": "python/src/norma/models/errors.py",
+      "bytes": 2334,
+      "sha256": "6ff0a07828017bb5016614d365292b4714ce06f9ccec45b994626bd865a95938"
+    },
+    {
+      "path": "python/src/norma/models/observability.py",
+      "bytes": 10080,
+      "sha256": "17485c4ac2ab2a2df423fe66657e38f29dd5e4657d41ed06b852f3956749c7c5"
+    },
+    {
+      "path": "python/src/norma/models/operations.py",
+      "bytes": 7780,
+      "sha256": "c3557e1b53a4aa9fea1cef2e42b7f36a5cbf0cf651197b2bbd2c10e26b521002"
+    },
+    {
+      "path": "python/src/norma/models/parameter_binding.py",
+      "bytes": 1351,
+      "sha256": "ce8d763cb86e58cb154a156ca4b45f636218481a8374f6d1350d0e685b3456c8"
+    },
+    {
+      "path": "python/src/norma/models/recovery_feedback.py",
+      "bytes": 1495,
+      "sha256": "ebe9c30d903cc23fe60e1e4b18ec12aa4b291b0def6214b128191c71e60b3572"
+    },
+    {
+      "path": "python/src/norma/models/rules.py",
+      "bytes": 2862,
+      "sha256": "13750ff42fd42d634ed6a2ebc23e7234de6ac28e9b7f9fa8819dcdcbf9322c55"
+    },
+    {
+      "path": "python/src/norma/models/semantic.py",
+      "bytes": 3804,
+      "sha256": "9398cefe8a32f6cb78803bad9a076273128b05a80ccc8e0cc63bc67373de6a02"
+    },
+    {
+      "path": "python/src/norma/models/server.py",
+      "bytes": 498,
+      "sha256": "05662a3db538912b8875ffca0719c4a6b67415f34b3ae7c295baf1b48f02bf12"
+    },
+    {
+      "path": "python/src/norma/models/turn.py",
+      "bytes": 7778,
+      "sha256": "b2a25f459f032a738f0869ec6b9d49e4b7c8876301849d5ec6951cc337d6847c"
+    },
+    {
+      "path": "python/src/norma/models/verification.py",
+      "bytes": 2432,
+      "sha256": "be37acdcfc7a3270d6375d8d4abefb714fbb39f1fd7115f8ae0aa020bbd1b937"
+    },
+    {
+      "path": "python/src/norma/observability.py",
+      "bytes": 61921,
+      "sha256": "2df5b97ada125bacfd7395c25db36cb7746977c6d2e04df8171ecc5bd158ebd9"
+    },
+    {
+      "path": "python/src/norma/operations.py",
+      "bytes": 8672,
+      "sha256": "38e308bf3adc7b59d5076c24eed92994c030527e999f3602a8bb36c997fb9df2"
+    },
+    {
+      "path": "python/src/norma/otel_sink.py",
+      "bytes": 14329,
+      "sha256": "684dc8f1140e990564f4efc3f79c02e6cc96f9b9d8732a6a86f7fd2ea19744e9"
+    },
+    {
+      "path": "python/src/norma/py.typed",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "python/src/norma/settings.py",
+      "bytes": 5365,
+      "sha256": "71283caf15d535f2fca4dea5a2faca5f30c19d5af2e270c01edf1b305b295a78"
+    },
+    {
+      "path": "python/src/norma/tracing.py",
+      "bytes": 8322,
+      "sha256": "103d6e363e53823b4d251c868fb39a4d812eaba6934913bcb6b03bb5b49f602d"
+    },
+    {
+      "path": "python/src/norma/validation.py",
+      "bytes": 1034,
+      "sha256": "d39a3cc0ef9235656f22130ae6be025c406285d27555b221684d69288733ed53"
+    },
+    {
+      "path": "python/tests/__init__.py",
+      "bytes": 22,
+      "sha256": "81127d693dcf68e3228225bfff7f48cbe4d6083ea29303adc63625291c406159"
+    },
+    {
+      "path": "python/tests/conftest.py",
+      "bytes": 606,
+      "sha256": "1b3ff14615d6d4565b25d30bba8d9b084a1540a604311b348fe88082cc37d715"
+    },
+    {
+      "path": "python/tests/test_checkpoint_state.py",
+      "bytes": 17183,
+      "sha256": "d702a219cb74ca1079bb084fa08bc344df929d05e361f02d8a90fa3d9d24a99a"
+    },
+    {
+      "path": "python/tests/test_cli.py",
+      "bytes": 4323,
+      "sha256": "58fc8f2adbc13dedc6e7abfd55a76a6daed743ee3402ad1e2db1ff8974fe7891"
+    },
+    {
+      "path": "python/tests/test_delivery_receipts.py",
+      "bytes": 15535,
+      "sha256": "def4f96e7f742945af8c66701c2f4fce890691da119feeb59cdedbf7e0350ddc"
+    },
+    {
+      "path": "python/tests/test_finish.py",
+      "bytes": 16306,
+      "sha256": "9486e1965a790a552ff088e182b016110f0e0166d55bcd1df6fee77e41111f64"
+    },
+    {
+      "path": "python/tests/test_finish_frameworks.py",
+      "bytes": 15272,
+      "sha256": "b88bb290106b945405e1e09e1413178368a05125c36ed6afa3612c0bd02b799f"
+    },
+    {
+      "path": "python/tests/test_google_adk_extractors.py",
+      "bytes": 4146,
+      "sha256": "6b5b5270314e761ea0643d6e103054008471aa76485b42f9bfa8eb100f7a907b"
+    },
+    {
+      "path": "python/tests/test_hosted_contract.py",
+      "bytes": 9928,
+      "sha256": "331914d4035f0876978f70a80e994dd45fdbe80b8983d19810a8de5714a38d4f"
+    },
+    {
+      "path": "python/tests/test_hosted_operations.py",
+      "bytes": 10939,
+      "sha256": "2d4520da3a4902aa4cdd3dcb16ae98319795999fb8db0989381c2d7432af789e"
+    },
+    {
+      "path": "python/tests/test_integrations_core.py",
+      "bytes": 6647,
+      "sha256": "842fef61f10f1f45102cafef99497b19bfd3fde317c7dbdf7177700db1902385"
+    },
+    {
+      "path": "python/tests/test_observability.py",
+      "bytes": 56112,
+      "sha256": "815b764a160065349f746bb2cf61756d45794a326c7963ce962c00627f9ca215"
+    },
+    {
+      "path": "python/tests/test_openai_agents.py",
+      "bytes": 23534,
+      "sha256": "c111d0c9b0a7adc8bfe819d39da78c717c31cc558dda42a54aef19c4582e7a71"
+    },
+    {
+      "path": "python/tests/test_otel_sink.py",
+      "bytes": 25983,
+      "sha256": "4d1ba0f33375b70f9a7d2025c41a74f8e4df5201961b7094273df2b8bfb1ca54"
+    },
+    {
+      "path": "python/tests/test_public_error_codes.py",
+      "bytes": 2290,
+      "sha256": "ca4ac1caf14745b909ae1972c3d2a56584ab6822ce2d122da9d68481a0898333"
+    },
+    {
+      "path": "python/tests/test_rule_decorators.py",
+      "bytes": 37298,
+      "sha256": "3254848dfbe0e176e082fe3c45703c8472603e5da2045b17acad55742fe8ad37"
+    },
+    {
+      "path": "python/tests/test_rule_registry.py",
+      "bytes": 17249,
+      "sha256": "107aaec29b0fc926762c900f8cee9ef5f54f1358ea36a96f33ed37cd5b72c4a0"
+    },
+    {
+      "path": "python/tests/test_rules_public_surface.py",
+      "bytes": 8776,
+      "sha256": "790d949e7115384b72dcbcb219a3afcbe1ce7d79186ba3c45efdd3e8133a6482"
+    },
+    {
+      "path": "python/tests/test_schema_derivation.py",
+      "bytes": 33217,
+      "sha256": "2667a392516357da2ee276bfeb99b31318e1bd151e213b8d667e4de1cfe8e994"
+    },
+    {
+      "path": "python/tests/test_shutdown.py",
+      "bytes": 8672,
+      "sha256": "c207ac886ab84afab5d1865a9a12634436cb670a185b6f65739616eb9c57f3e8"
+    },
+    {
+      "path": "python/tests/test_strands_plugin.py",
+      "bytes": 35237,
+      "sha256": "05ef67e46796b57deec40089cc53971c73d9418a1c2fab405aef6629f1fdef40"
+    },
+    {
+      "path": "python/tests/test_strands_steering.py",
+      "bytes": 23393,
+      "sha256": "2a355bd9476c388f9e91189b892cf8975ac295cf16c5178fc9975a08368f3c7d"
+    },
+    {
+      "path": "python/tests/test_trace_context.py",
+      "bytes": 2024,
+      "sha256": "40281d3e335894a6ebaadd1e7d8a6241159f97de80addc2f95bf5c0a2e311340"
+    },
+    {
+      "path": "python/tests/test_tracing.py",
+      "bytes": 11140,
+      "sha256": "1485ebca19fd9a62484bbab053854c621a24123913dc82e416ef1e162cb6dc8b"
+    },
+    {
+      "path": "python/tests/test_validation.py",
+      "bytes": 814,
+      "sha256": "40704b64e133d811386a0cd9a55ceae2bee4dc038fee1a50e08e86ddbf1509bb"
+    },
+    {
+      "path": "python/uv.lock",
+      "bytes": 399024,
+      "sha256": "015a550fac42c47e04eac5f2fe2c5718f92c39f01795893a580a1dd5fbde4159"
+    },
+    {
+      "path": "tools/verify_export.py",
+      "bytes": 1800,
+      "sha256": "7ff41a98ba3ec1c6c275f18e2d2c9a976296ac4a083a9898c8d25cec6e75ecf4"
+    },
+    {
+      "path": "typescript/.eslintrc.cjs",
+      "bytes": 436,
+      "sha256": "1afad6c551498b71f154966a7f81c9a66c30b3099f6c092aa1a019d6137018cd"
+    },
+    {
+      "path": "typescript/.gitignore",
+      "bytes": 164,
+      "sha256": "f106bdae4821224b873c9c73bbc85da41dae11c1c587d04c47c6bb6cb6fb715c"
+    },
+    {
+      "path": "typescript/LICENSE",
+      "bytes": 10173,
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
+    },
+    {
+      "path": "typescript/Makefile",
+      "bytes": 1604,
+      "sha256": "64fc7f6412fc686d7a99d6dc1cac63f86683f58c9c15490c047fa31bdc9c1d59"
+    },
+    {
+      "path": "typescript/OPENAI_AGENTS.md",
+      "bytes": 4361,
+      "sha256": "a493ddd5ca7d8fc32d8b22c90766ca4293b4897e3f9fe2e92122fc7afe0a4320"
+    },
+    {
+      "path": "typescript/README.md",
+      "bytes": 9877,
+      "sha256": "f26b45230d9d9506c6e2703ba3d3e79c68955355c788cf0aafe124923ed864b0"
+    },
+    {
+      "path": "typescript/RELEASING.md",
+      "bytes": 992,
+      "sha256": "6aace7a432ffeff03b469a0e6ddc51eac0014c637482e08f328aeed71457b110"
+    },
+    {
+      "path": "typescript/THIRD_PARTY_NOTICES",
+      "bytes": 2719,
+      "sha256": "3d4c43081973677cb05b9904a9cefe27f613f2e99015629643060d3971c61fb1"
+    },
+    {
+      "path": "typescript/examples/openai-agents.ts",
+      "bytes": 926,
+      "sha256": "ce9cf13dd4f4b6d19f4a32670187cd70a82dcb84039281c15379b4c349b4e5ac"
+    },
+    {
+      "path": "typescript/package.json",
+      "bytes": 2201,
+      "sha256": "e270e72e31a3d861409e498f430e4231c123e62383994854908579e534457ad9"
+    },
+    {
+      "path": "typescript/pnpm-lock.yaml",
+      "bytes": 77372,
+      "sha256": "fb02e328cd12437040b6bdb1c23bd6be0dfe86ecc1ac2274fcd7456ab16c0f28"
+    },
+    {
+      "path": "typescript/pnpm-workspace.yaml",
+      "bytes": 48,
+      "sha256": "06eb1e024a7ea3476f849078efeeb0bf15d9634f28d2bed01fb462b6563df871"
+    },
+    {
+      "path": "typescript/public-contract.json",
+      "bytes": 2494,
+      "sha256": "c84ac7a728cb93a4ecaf722806fe7e039b367f3571d85d1c32b751f19fcf8c18"
+    },
+    {
+      "path": "typescript/scripts/check_public_contract.py",
+      "bytes": 2733,
+      "sha256": "5c781dddcb03f5152e10e7618bb7bc967d207aed7fa69a0203a5adc174af9380"
+    },
+    {
+      "path": "typescript/scripts/qualify_packed_sdk.py",
+      "bytes": 13494,
+      "sha256": "481752b75f792ba064c9f430b4319271719ab07d154df8758d0f70c335aaf6ac"
+    },
+    {
+      "path": "typescript/src/api-error.ts",
+      "bytes": 7945,
+      "sha256": "e6075e91d70944e90ffef49c32e42ba321be97204972595e67b117fa8c432461"
+    },
+    {
+      "path": "typescript/src/check-events.ts",
+      "bytes": 136,
+      "sha256": "48f24b846eccbcd64fdb7eb72b2ca427275a5c177cfc54ac39a3449fba8f8a66"
+    },
+    {
+      "path": "typescript/src/checkpoint-arguments.ts",
+      "bytes": 2488,
+      "sha256": "a3fff54f02bb83db343008f9ba28cbda56746317ed4cb823d4b31cf0a5b68457"
+    },
+    {
+      "path": "typescript/src/checkpoint-state.ts",
+      "bytes": 3298,
+      "sha256": "e1bce68f74a4d9f259f65d08c5d71ed65354d927fc39268750b0ca3999fad1ad"
+    },
+    {
+      "path": "typescript/src/checkpoint.ts",
+      "bytes": 9255,
+      "sha256": "19659bc79e7390dbd7a9cf824e8cdfb5469afa0435bf96c06d3eefa18f04300d"
+    },
+    {
+      "path": "typescript/src/client.ts",
+      "bytes": 9479,
+      "sha256": "13b00c0f4788bfe1e564c1ed6839156be809cac03739c3909883e95fe636dac3"
+    },
+    {
+      "path": "typescript/src/errors.ts",
+      "bytes": 3149,
+      "sha256": "8739ec66446e08ca257fb7b22fcb3ee7003e3d613234bbb803538fb5667c29e6"
+    },
+    {
+      "path": "typescript/src/finish.ts",
+      "bytes": 13448,
+      "sha256": "98a8882264d6f83523e38b07ccc0ab671706c311eb5b4ed4a9f61f1d06b50550"
+    },
+    {
+      "path": "typescript/src/generated/core.ts",
+      "bytes": 595,
+      "sha256": "bcf0a2ca1c2282bcf9f5424cb1578be1490328e7e78d41209b7b5b4c33c40a54"
+    },
+    {
+      "path": "typescript/src/generated/funcs/agents-get-evaluator.ts",
+      "bytes": 5809,
+      "sha256": "c472400ed6a6687cdd3d583bbb41e778d2999ba7d8215e6f88331e2fae69492a"
+    },
+    {
+      "path": "typescript/src/generated/funcs/agents-get.ts",
+      "bytes": 5512,
+      "sha256": "b6c52492cbf9c99bfe91149b688a9128ab675c28cdeecee568c5829c131d1aa2"
+    },
+    {
+      "path": "typescript/src/generated/funcs/agents-list-evaluators.ts",
+      "bytes": 6011,
+      "sha256": "7a85896b8128d030257f9e5b75599b763723763e1fb0cf4f9bc669813c82755c"
+    },
+    {
+      "path": "typescript/src/generated/funcs/agents-list-rules.ts",
+      "bytes": 6825,
+      "sha256": "59685b070e7ad5b7ab08bdb9ed5251a709dfa03431adc874008228b5915f5340"
+    },
+    {
+      "path": "typescript/src/generated/funcs/agents-list.ts",
+      "bytes": 5723,
+      "sha256": "35a4cc23f14ab4b6a723e1cff895a776a3491b8e4e04bb16c218257e021fe443"
+    },
+    {
+      "path": "typescript/src/generated/funcs/agents-register.ts",
+      "bytes": 6123,
+      "sha256": "a368bcec099100aee11ef355321a90a4632b64cf9c954b1daea7662b0b986a12"
+    },
+    {
+      "path": "typescript/src/generated/funcs/agents-update.ts",
+      "bytes": 5804,
+      "sha256": "1dc34380fceb3399c64ca134dc54b03a1b5b675e29afb77f481c17ef8bea91b2"
+    },
+    {
+      "path": "typescript/src/generated/funcs/checks-check.ts",
+      "bytes": 5624,
+      "sha256": "975c1727da182c0f53144c77fc0b4ba52709d4582fa51bb7eca2e78b5d5e3f45"
+    },
+    {
+      "path": "typescript/src/generated/funcs/evaluators-list.ts",
+      "bytes": 4550,
+      "sha256": "c11dc2a2177b0e06a37f471088818e17746b22a6c2a004dd96d6b82dd307316e"
+    },
+    {
+      "path": "typescript/src/generated/funcs/observability-ingest-events.ts",
+      "bytes": 5233,
+      "sha256": "2d38d89d115a4a624557866f6fc1775509127c3cfb6ca2027af7ea38d791bc65"
+    },
+    {
+      "path": "typescript/src/generated/funcs/rule-bindings-get.ts",
+      "bytes": 5715,
+      "sha256": "8296d672ad5fb95df1943f0d874d5c2635f3b6a4257d983dafa5f21e4d6366da"
+    },
+    {
+      "path": "typescript/src/generated/funcs/rule-bindings-list.ts",
+      "bytes": 5703,
+      "sha256": "e885d2c4a6e44baa77907106fcf87bc770526c125cf6ef23961256b584a8b4c8"
+    },
+    {
+      "path": "typescript/src/generated/hooks/hooks.ts",
+      "bytes": 3206,
+      "sha256": "880a14a6f1f970ae1c0e5d5e0e99a9e989b8dbac8c9792220e6c050742250044"
+    },
+    {
+      "path": "typescript/src/generated/hooks/types.ts",
+      "bytes": 3642,
+      "sha256": "72e88bea1d4d82b5d7ee7ecdd6ae24416102c8a7e145e377ae6d7c4b1ae0a269"
+    },
+    {
+      "path": "typescript/src/generated/lib/base64.ts",
+      "bytes": 1194,
+      "sha256": "574d5185e5d02398696aefb6c38325a478d8d6388b580fafa9bbd73ae296aef0"
+    },
+    {
+      "path": "typescript/src/generated/lib/config.ts",
+      "bytes": 1733,
+      "sha256": "8928b5174298d7ca6be9bbee29764f2d7cdfc8845ec4a0c52d70985737ece1bc"
+    },
+    {
+      "path": "typescript/src/generated/lib/encodings.ts",
+      "bytes": 12469,
+      "sha256": "adfc1d3567abea54811f406af1e89269eeb1f6ae94152eb698426ab2c061e494"
+    },
+    {
+      "path": "typescript/src/generated/lib/http.ts",
+      "bytes": 9005,
+      "sha256": "ae0f4425b1968bfdf5ca2b1d3de63efa1169e209120b4ce74ab9a757e83407cf"
+    },
+    {
+      "path": "typescript/src/generated/lib/is-plain-object.ts",
+      "bytes": 1844,
+      "sha256": "459759eddbf36aef1eec6230f973e8dea9718c21defc4ba24f1f330733ba176c"
+    },
+    {
+      "path": "typescript/src/generated/lib/logger.ts",
+      "bytes": 329,
+      "sha256": "adabcf7a2cff44692551decf3e9e550c128318c27168da86f8e36ce5ebbfe69a"
+    },
+    {
+      "path": "typescript/src/generated/lib/matchers.ts",
+      "bytes": 9132,
+      "sha256": "d5eb6aa50acab7a2c96d57d67a3a2c31b2e90473611e921e4c22073ee8253591"
+    },
+    {
+      "path": "typescript/src/generated/lib/primitives.ts",
+      "bytes": 3663,
+      "sha256": "62d286d16b96c37951db130e08ef24138feff20468f605aabb6d130b9201b9a3"
+    },
+    {
+      "path": "typescript/src/generated/lib/retries.ts",
+      "bytes": 5358,
+      "sha256": "3af094709fff66eb5d1b323f84420b9d5a2b26fe8e8699d58b0d9cd4a514a0e5"
+    },
+    {
+      "path": "typescript/src/generated/lib/schemas.ts",
+      "bytes": 2583,
+      "sha256": "6f8f39408f2440f07eaec05ec01945263335f9d53d50f90f2ec5c0af64316ace"
+    },
+    {
+      "path": "typescript/src/generated/lib/sdks.ts",
+      "bytes": 9980,
+      "sha256": "e8c7168f89381e0376c10cf2d66dbd3fa5df232cc71c3b8f146f4e6123afb0b8"
+    },
+    {
+      "path": "typescript/src/generated/lib/security.ts",
+      "bytes": 6128,
+      "sha256": "cd7bd575c1d0f8a0374a72d515b698e9540b483da79e13a4d6bbc914caf31db0"
+    },
+    {
+      "path": "typescript/src/generated/lib/url.ts",
+      "bytes": 1130,
+      "sha256": "f0832fab2f8f30476dc9d35ab527851f872153b302a6ff230fb3ea72b808dc27"
+    },
+    {
+      "path": "typescript/src/generated/models/action-decision.ts",
+      "bytes": 796,
+      "sha256": "24dfc1c9335fd783961fdb7fbb7b55621901ade0ab3ca121b7064ec843a40712"
+    },
+    {
+      "path": "typescript/src/generated/models/agent-rules-response.ts",
+      "bytes": 1154,
+      "sha256": "6b1d65d3a2d0083a016879519c05689eb370f60b83f992f50c26b4d712025fa7"
+    },
+    {
+      "path": "typescript/src/generated/models/agent-summary.ts",
+      "bytes": 2147,
+      "sha256": "79d15352d9d96ca7c1d67fc04795e19ea574ad7851a93a4b80a18e8d7b5f11ba"
+    },
+    {
+      "path": "typescript/src/generated/models/agent.ts",
+      "bytes": 3655,
+      "sha256": "f4fd3ef624b33424fa78dd7eccca4c1dc3c9f796c424a61d051c14f23481f5da"
+    },
+    {
+      "path": "typescript/src/generated/models/batch-events-request.ts",
+      "bytes": 1245,
+      "sha256": "de85883729b2cf0dbd50788cdc5ca6691a5bda0ccc622c60bc0797d9bda4f894"
+    },
+    {
+      "path": "typescript/src/generated/models/batch-events-response.ts",
+      "bytes": 2237,
+      "sha256": "539451d09d77bd5bb462c37816e5e0fe4531dc4630c267f5a107b78465f91050"
+    },
+    {
+      "path": "typescript/src/generated/models/boolean-template-parameter.ts",
+      "bytes": 2930,
+      "sha256": "14e780cb57826a2dc587ccaadf09f915aa4aee107001f462369f1c7ea331b40b"
+    },
+    {
+      "path": "typescript/src/generated/models/check-request.ts",
+      "bytes": 3031,
+      "sha256": "b15efcf52b4ccda82b90e3165bc4751b49762066f1c5f5cc1c21e475ba41eb1c"
+    },
+    {
+      "path": "typescript/src/generated/models/check-response.ts",
+      "bytes": 3313,
+      "sha256": "d8741e0bfefcc3b4305ce62d81c04c08ab90f4e96e8f280803e7996f8f0763c0"
+    },
+    {
+      "path": "typescript/src/generated/models/condition-node-input.ts",
+      "bytes": 2234,
+      "sha256": "9009490fd635563d9d3bdc357f2bfeef5c99bf154e01913c324bab3570a60978"
+    },
+    {
+      "path": "typescript/src/generated/models/condition-node-output.ts",
+      "bytes": 2085,
+      "sha256": "db2fe5d887a6dbe9eb4fa2f4f4e460b0a71a45c2935a101ff65daa4708c8ace5"
+    },
+    {
+      "path": "typescript/src/generated/models/conflict-mode.ts",
+      "bytes": 1060,
+      "sha256": "f04066e12c96beb61e6bf1dc8e1a7a8579bfe4267fc331da4f7fd4c34efb870c"
+    },
+    {
+      "path": "typescript/src/generated/models/enum-template-parameter.ts",
+      "bytes": 3157,
+      "sha256": "adf27693d36284951227f60122c97b32bdf404d76f059c641a9b869dee098f85"
+    },
+    {
+      "path": "typescript/src/generated/models/errors/http-client-errors.ts",
+      "bytes": 1781,
+      "sha256": "56c065240c0398bda4f7bd43984d9b6c970aaa4fec60a08b389c846a8cb29c98"
+    },
+    {
+      "path": "typescript/src/generated/models/errors/http-validation-error.ts",
+      "bytes": 1645,
+      "sha256": "4b9dc4c5f24201a576848e885c833d8897abdad8140bb90ef8bec8f313153387"
+    },
+    {
+      "path": "typescript/src/generated/models/errors/index.ts",
+      "bytes": 67,
+      "sha256": "2d38ec4d0343ab603eb96696dae1185532476471b64517d9f9aa1a4e26372bf3"
+    },
+    {
+      "path": "typescript/src/generated/models/errors/norma-sdk-default-error.ts",
+      "bytes": 607,
+      "sha256": "92e9f4fa507b73a2b42b0eb74a3ccc95115d12197f745d758271b6635010ac52"
+    },
+    {
+      "path": "typescript/src/generated/models/errors/norma-sdk-error.ts",
+      "bytes": 1365,
+      "sha256": "d820dcc3922b10b090f841bab96cd4266820689f42c433d9db4d12a7bbc717ec"
+    },
+    {
+      "path": "typescript/src/generated/models/errors/response-validation-error.ts",
+      "bytes": 1385,
+      "sha256": "0c0a5ef21340b0ba996eee398ad678fdb9eedcc17081dd2e8b4f9321a5e6adb7"
+    },
+    {
+      "path": "typescript/src/generated/models/errors/sdk-validation-error.ts",
+      "bytes": 1671,
+      "sha256": "19dbcbecce7e1e4a4d2cedffe3ec5009a6a0a20cb01743775c45340f289d9630"
+    },
+    {
+      "path": "typescript/src/generated/models/evaluator-info.ts",
+      "bytes": 1794,
+      "sha256": "d9c4512b160c30b66eb828a97d71a3e02a231603a68f839bb8d6440986fb918b"
+    },
+    {
+      "path": "typescript/src/generated/models/evaluator-result.ts",
+      "bytes": 3483,
+      "sha256": "c84024565c18fdb5cf240034498a87a4ffa44b2319a67ed00e0c59bacc80305d"
+    },
+    {
+      "path": "typescript/src/generated/models/evaluator-schema-item.ts",
+      "bytes": 1370,
+      "sha256": "c2c7b8be9741a1379ae6f2f7a384ebe5501b33ef444e312e9dd874d63bf77a3f"
+    },
+    {
+      "path": "typescript/src/generated/models/evaluator-schema.ts",
+      "bytes": 2435,
+      "sha256": "74f2a03b9e2bb99435571099a84bf97fc88a898085f3ef1f16ebf832d5e60e26"
+    },
+    {
+      "path": "typescript/src/generated/models/evaluator-spec.ts",
+      "bytes": 1867,
+      "sha256": "fb96573c2cd084a4646333f0c93f75dd6bfb97e7023813222da00b53be8d4c70"
+    },
+    {
+      "path": "typescript/src/generated/models/get-agent-response.ts",
+      "bytes": 1810,
+      "sha256": "e2dd7ccc17cdf603ef2f3845c8f340104ebdafb852c217b34f083a73221d6563"
+    },
+    {
+      "path": "typescript/src/generated/models/get-rule-binding-response.ts",
+      "bytes": 1733,
+      "sha256": "178706531d23e3e22294aa1a2171f8c5da162eacb4c08fe60217ea0dadd0322b"
+    },
+    {
+      "path": "typescript/src/generated/models/index.ts",
+      "bytes": 782,
+      "sha256": "438a1176dc25e267b60d350be2698ba77de3c14df976894d706c8ce91be3ffd4"
+    },
+    {
+      "path": "typescript/src/generated/models/list-agents-response.ts",
+      "bytes": 1348,
+      "sha256": "d93697c5d837d07ff44df9fefbe4810a65d6c738d720fd72fb496812d8a2c96a"
+    },
+    {
+      "path": "typescript/src/generated/models/list-evaluators-response.ts",
+      "bytes": 1403,
+      "sha256": "afe3fe9964efd7b595f0af1a24df4a6dcd4f2f627f73637a59967fb880251018"
+    },
+    {
+      "path": "typescript/src/generated/models/list-rule-bindings-response.ts",
+      "bytes": 1501,
+      "sha256": "2537ad4a6beba889aab9a3c505e87a1fe155f5e4eced739880c85c0b7a25bdcd"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/get-agent-api-v1-agents-agent-name-get.ts",
+      "bytes": 1169,
+      "sha256": "f0a1905ae7033e547049fb8600199229d2308664a1f50ebdf460fe14f15a04de"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/get-agent-evaluator-api-v1-agents-agent-name-evaluators-evaluator-name-get.ts",
+      "bytes": 1641,
+      "sha256": "5f03832f26f5bfd6f6a899176e3354ad6cbc3845a29e1c09da7e3efde9955dd1"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/get-rule-binding-api-v1-rule-bindings-binding-id-get.ts",
+      "bytes": 1286,
+      "sha256": "0de5328652dc4c113fe4dc261fad66c2bfabadcfbb3a637b293b497c9ca9d361"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/index.ts",
+      "bytes": 597,
+      "sha256": "e729df62774d881fdd3570a2863c5c319a047fa52db74f7072dfe8f58308d36d"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/list-agent-evaluators-api-v1-agents-agent-name-evaluators-get.ts",
+      "bytes": 1594,
+      "sha256": "aef5dd1e57d2b0adf1edcddcfa32c1ec38832796ea2e0f2f142621672bc913fa"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/list-agent-rules-api-v1-agents-agent-name-rules-get.ts",
+      "bytes": 3831,
+      "sha256": "37285a5f54c6483782faf5525ecf03e68e6e883ee5773633ee0fa02397c76814"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/list-agents-api-v1-agents-get.ts",
+      "bytes": 1153,
+      "sha256": "55d71f148770607292bfd8b7127b1559a5aa5545dd2ddb5bffa24ed84a0948ab"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/list-rule-bindings-api-v1-rule-bindings-get.ts",
+      "bytes": 2009,
+      "sha256": "146ea25bf82d247f014b198580754f3e94eec56873d9cbde13ccf68527965a39"
+    },
+    {
+      "path": "typescript/src/generated/models/operations/patch-agent-api-v1-agents-agent-name-patch.ts",
+      "bytes": 1378,
+      "sha256": "450e883f2d99327bd03a80d1b8e81818922a9bf5bbb7b75d2341171731ba13ba"
+    },
+    {
+      "path": "typescript/src/generated/models/pagination-info.ts",
+      "bytes": 1606,
+      "sha256": "60b4ade4a4ba66728e8ba1f0addb0e73d0bee564e3c3607c8c6662d05b65f8fc"
+    },
+    {
+      "path": "typescript/src/generated/models/patch-agent-request.ts",
+      "bytes": 1476,
+      "sha256": "dc0a6dd9368f5e447d7564be1e86e01620d15f28d7dc41e4fc3d8cafb16b00ce"
+    },
+    {
+      "path": "typescript/src/generated/models/patch-agent-response.ts",
+      "bytes": 1586,
+      "sha256": "0ec2a78ee62e1061c88e19cb50bc91adcd665ba81efdc7af11f0b43fc1a8edba"
+    },
+    {
+      "path": "typescript/src/generated/models/regex-template-parameter.ts",
+      "bytes": 3152,
+      "sha256": "91f6be3e3781643026112a08e93d57ff681a0985c6fd2c6ea457be6ed6572fa6"
+    },
+    {
+      "path": "typescript/src/generated/models/register-agent-evaluator-removal.ts",
+      "bytes": 1921,
+      "sha256": "01d35a292e5ea49d44a4df884ec805f0e5465b4c37c66a691a1efb47e8613c76"
+    },
+    {
+      "path": "typescript/src/generated/models/register-agent-overwrite-changes.ts",
+      "bytes": 3119,
+      "sha256": "da51bf890768e82c364aa2023ea01976af1330880b3e3e98fd39cd045963985b"
+    },
+    {
+      "path": "typescript/src/generated/models/register-agent-request.ts",
+      "bytes": 3428,
+      "sha256": "4fc5e76ea0c95b2f84b7afd2bb63d9c9f36f63e153d726fd99afbe9491f5a6c8"
+    },
+    {
+      "path": "typescript/src/generated/models/register-agent-response.ts",
+      "bytes": 2064,
+      "sha256": "79a998d2b6dbda7d4c920831fd2bc5b515e9ad04e74943df66167d181ce2463b"
+    },
+    {
+      "path": "typescript/src/generated/models/rule-action.ts",
+      "bytes": 2383,
+      "sha256": "c590991e321a0a3bef7328adad5f83b63adf09ca71315213da29511c362234ae"
+    },
+    {
+      "path": "typescript/src/generated/models/rule-check-event.ts",
+      "bytes": 7911,
+      "sha256": "e6c1e97d22192e8cf34e54e53806c1d0cadb6605162ce17f0aa3553f98d1cb02"
+    },
+    {
+      "path": "typescript/src/generated/models/rule-definition-input.ts",
+      "bytes": 4023,
+      "sha256": "ba4529c8f9d53a7efb1de49b4637c47af73ac00fe5345fd3f6bb515f46ee0625"
+    },
+    {
+      "path": "typescript/src/generated/models/rule-definition-output.ts",
+      "bytes": 3744,
+      "sha256": "b50e1157f752a2fce47ffd7dbe6bd5a8ee0f39cb3e561e7b3ae88fddd03867c9"
+    },
+    {
+      "path": "typescript/src/generated/models/rule-match.ts",
+      "bytes": 3193,
+      "sha256": "bfd554a66bb364bf07c4eb5910ec45bbabb1ac51f6130210d67b5ea82dd88f52"
+    },
+    {
+      "path": "typescript/src/generated/models/rule-scope.ts",
+      "bytes": 3289,
+      "sha256": "65a1c5cf0686c71ade926eabe6a47f82c3b3ecd6247095996bda234db7e2a4ab"
+    },
+    {
+      "path": "typescript/src/generated/models/rule-selector.ts",
+      "bytes": 1704,
+      "sha256": "b1871ccd6c184935989f333f754a82ad97bfa9fe5805986b0bb450dda6306009"
+    },
+    {
+      "path": "typescript/src/generated/models/rule.ts",
+      "bytes": 2094,
+      "sha256": "6088942b6f754636d9f16e72a575fa031d0c8b003bfc305361274eba23c6f7a8"
+    },
+    {
+      "path": "typescript/src/generated/models/security.ts",
+      "bytes": 860,
+      "sha256": "561fafe4d737d6efb51f7f2cf93c36e475aafe091ff8239aff663bd100045bae"
+    },
+    {
+      "path": "typescript/src/generated/models/steering-context.ts",
+      "bytes": 1661,
+      "sha256": "07f00078261aed401d47cbc8998d26890b302dfe4baddde1546a26a9f0456805"
+    },
+    {
+      "path": "typescript/src/generated/models/step-key.ts",
+      "bytes": 1426,
+      "sha256": "31d50e6c5e103802ab113f1293555a0445a810ec13fdb10a8eaeb8d4133ea53d"
+    },
+    {
+      "path": "typescript/src/generated/models/step-schema.ts",
+      "bytes": 3060,
+      "sha256": "f61d0690dea6c1d2b2632e3023e39114a9cb147cec336a4bf2471d629e11e3a0"
+    },
+    {
+      "path": "typescript/src/generated/models/step.ts",
+      "bytes": 1948,
+      "sha256": "f48e71ca2f392795ec1de1d2083484d4a704bba33187fb3b091ab9b360f6a217"
+    },
+    {
+      "path": "typescript/src/generated/models/string-list-template-parameter.ts",
+      "bytes": 3322,
+      "sha256": "af6ef4a16e36014a17d98e1ed4bf728c0fe82782c245f4412567b17e83eb138a"
+    },
+    {
+      "path": "typescript/src/generated/models/string-template-parameter.ts",
+      "bytes": 3151,
+      "sha256": "d2b6a0760852e7f26ce9b243e7652000d63a2073215411025ebd83365d34c207"
+    },
+    {
+      "path": "typescript/src/generated/models/template-definition-input.ts",
+      "bytes": 1832,
+      "sha256": "d6947791e28ff03d02850c5246f5112020cf5ffa932bc9668b004eca0efd20ad"
+    },
+    {
+      "path": "typescript/src/generated/models/template-definition-output.ts",
+      "bytes": 1868,
+      "sha256": "61a29f9d47bc30d8771a2a27fb2f71255f1a9e8a18f5c3a8edfd51291efad055"
+    },
+    {
+      "path": "typescript/src/generated/models/template-parameter-definition.ts",
+      "bytes": 3431,
+      "sha256": "260f006237413646bfff4507746d2967dc35c14f531e348980dddbb017ccd50e"
+    },
+    {
+      "path": "typescript/src/generated/models/template-value.ts",
+      "bytes": 1458,
+      "sha256": "b7960ac743eeaa98ae3c285e7328b748d9c2e50dfdabfb16dbb29513b6c16ae0"
+    },
+    {
+      "path": "typescript/src/generated/models/unrendered-template-rule.ts",
+      "bytes": 2161,
+      "sha256": "ce9d0070f325e72b428cf66fd9bcb94f59d2ec2d1b17baefa772468adb337270"
+    },
+    {
+      "path": "typescript/src/generated/models/validation-error.ts",
+      "bytes": 1533,
+      "sha256": "ac603723f3e159bf8505a84f192c4233e5de6fa9d67aabf2f00126746b2502bc"
+    },
+    {
+      "path": "typescript/src/generated/sdk/agents.ts",
+      "bytes": 2596,
+      "sha256": "dcf64a8de348ef9d44e3c4c667865edbbe3ed4e2d9241f38e9268be789818a45"
+    },
+    {
+      "path": "typescript/src/generated/sdk/checks.ts",
+      "bytes": 555,
+      "sha256": "308fac2183cf408db6403cd8f79e20365f8a0ae7e069b458102beb93fcad910f"
+    },
+    {
+      "path": "typescript/src/generated/sdk/evaluators.ts",
+      "bytes": 535,
+      "sha256": "8e224d258c6b6702139f06cfab565611b1acd8193016430dbf2b854181330af7"
+    },
+    {
+      "path": "typescript/src/generated/sdk/observability.ts",
+      "bytes": 685,
+      "sha256": "1f96e9bc934cd5023bff6b0844bb2aea618e08bd319f46cf2b75dbd2110e8cad"
+    },
+    {
+      "path": "typescript/src/generated/sdk/rule-bindings.ts",
+      "bytes": 1041,
+      "sha256": "22093f061043f00648e2b2c8e239b186b57258c02615afc7f0b98682dde03507"
+    },
+    {
+      "path": "typescript/src/generated/sdk/sdk.ts",
+      "bytes": 1066,
+      "sha256": "5b4faeadf1e8ff5a1eb0232c80d77479dffa4608077837de5c15496f1789a2f7"
+    },
+    {
+      "path": "typescript/src/generated/types/async.ts",
+      "bytes": 1969,
+      "sha256": "a5999b2ae012e611a2848f906cf08c6cad7224e2ab9015d48e21223597ae8741"
+    },
+    {
+      "path": "typescript/src/generated/types/default-to-zero-value.ts",
+      "bytes": 1107,
+      "sha256": "86f0742e470eddf586b90a3cb573ea1b3bb5d0e6bbf96f0801a94654e6d49ffd"
+    },
+    {
+      "path": "typescript/src/generated/types/discriminated-union.ts",
+      "bytes": 3544,
+      "sha256": "645295e297f1b6011a9ca6c268053b7aa7e2ea240c8076dbf47ad958454fd19f"
+    },
+    {
+      "path": "typescript/src/generated/types/enums.ts",
+      "bytes": 1560,
+      "sha256": "b94a3b49604493b77c09582e87bbd90a5479c26f4d0de913814147e7c5bdceb7"
+    },
+    {
+      "path": "typescript/src/generated/types/fp.ts",
+      "bytes": 1569,
+      "sha256": "c8806373ab2a8f77592b953bf407f490f06bfc983a905dc5bf38f3bf12429985"
+    },
+    {
+      "path": "typescript/src/generated/types/primitives.ts",
+      "bytes": 4125,
+      "sha256": "81afecbe936ca1ce6bfb532a99a5cee66e33e281feba8f5893d5e399247d3eaa"
+    },
+    {
+      "path": "typescript/src/generated/types/rfcdate.ts",
+      "bytes": 1469,
+      "sha256": "486db8499067792023e52017eb61b8ed9c6956d2faaab5a030ef7b64ba97bd4e"
+    },
+    {
+      "path": "typescript/src/generated/types/smart-union.ts",
+      "bytes": 4719,
+      "sha256": "3322b873bab360b8225952f6a845ee92d4331c81334d92a2dba97336b12661f1"
+    },
+    {
+      "path": "typescript/src/generated/types/unrecognized.ts",
+      "bytes": 1152,
+      "sha256": "8ff6ea74c28db4f4fbf4083d79c8099deda0660278375ff319e836f9b008b4f2"
+    },
+    {
+      "path": "typescript/src/index.ts",
+      "bytes": 1996,
+      "sha256": "00b4d8589aeb4a6b2c02b60eb7f0d319b3f9c69548b2376c1c731b25769dbf93"
+    },
+    {
+      "path": "typescript/src/internal/check-events.ts",
+      "bytes": 8098,
+      "sha256": "ba4a403e89ebdc43099b10b8ededcdcf7b3612c7c517605b04987c1ae3a61ac7"
+    },
+    {
+      "path": "typescript/src/internal/operations.ts",
+      "bytes": 24094,
+      "sha256": "7317714047e2fd62940aa02283fb1f35bdda2f2fdf3377251f0efd27cc406a2c"
+    },
+    {
+      "path": "typescript/src/internal/public-adapters.ts",
+      "bytes": 7364,
+      "sha256": "e8e253fe707cb33dbccbbd3a700ea9d41354ef62b20278a77c71584e79c50632"
+    },
+    {
+      "path": "typescript/src/internal/semantic-check.ts",
+      "bytes": 6237,
+      "sha256": "f8c1470b5bfbebdef3b7ab840476409fd1482a0e3460f834ff639d22f728fbdd"
+    },
+    {
+      "path": "typescript/src/internal/semantic-definition.ts",
+      "bytes": 13214,
+      "sha256": "7e9af17eac5b22a22cb848553df23ba3a355d090967a20f14bccc76dc0686dcf"
+    },
+    {
+      "path": "typescript/src/json-contract.ts",
+      "bytes": 1146,
+      "sha256": "bd5d43466fb1ed11ba1901a422b53e26229929a96c1d7bf471392e2ca8b2cdab"
+    },
+    {
+      "path": "typescript/src/openai-agents.ts",
+      "bytes": 9562,
+      "sha256": "32ccbacdaae0c025718b3f4506564f0d40c5bb3e10b2b682e14e8dc32d2999c7"
+    },
+    {
+      "path": "typescript/src/operations.ts",
+      "bytes": 362,
+      "sha256": "33ad5d01df5990e2195525ef61cea8a933c1c7abc4ebda8f428d2fb338c0c3fa"
+    },
+    {
+      "path": "typescript/src/public-api.ts",
+      "bytes": 6471,
+      "sha256": "95c42d5fee370e1396a7b4f0bfff285351ef2ecc78224095157c7de450053696"
+    },
+    {
+      "path": "typescript/src/types.ts",
+      "bytes": 274,
+      "sha256": "c37a2ca9d63b43b8ba6de048310e49dea5b28a357471c6449473edf5c8963527"
+    },
+    {
+      "path": "typescript/tests/api-error.test.ts",
+      "bytes": 9120,
+      "sha256": "90411cd94c8ab2871f4cf311fcf44b06485e431f59e9c148092f15b7e35f08ba"
+    },
+    {
+      "path": "typescript/tests/check-reporting.test.ts",
+      "bytes": 7114,
+      "sha256": "bc0dc9a0254a6f916bfda06995d4c093fe71ac218ce86ac113f0725c9cedf7c9"
+    },
+    {
+      "path": "typescript/tests/checkpoint-arguments.test.ts",
+      "bytes": 10511,
+      "sha256": "b29700533511cd9e537308877888d1fef3d3ffd1c53cc3c75e28c09755558efe"
+    },
+    {
+      "path": "typescript/tests/checkpoint-state.test.ts",
+      "bytes": 13063,
+      "sha256": "609e71e3e813407e9063fce54baaefcd1717f07afd75956af66e6bdf97207f79"
+    },
+    {
+      "path": "typescript/tests/checkpoint.test.ts",
+      "bytes": 5028,
+      "sha256": "a36c002bcb63c468b2cb9db344ccd3cb0c2633a6a731f17d4d153c56d08fde6b"
+    },
+    {
+      "path": "typescript/tests/client-api.test.ts",
+      "bytes": 3399,
+      "sha256": "70720be474293ddb46d61b74c970314a700d6484ef2f572442c97bd6c3d8f9cc"
+    },
+    {
+      "path": "typescript/tests/client.test.ts",
+      "bytes": 2747,
+      "sha256": "db9c315871611bc8a08eb1e2eb651083f0778be790fa6770d74a84f05646f8b9"
+    },
+    {
+      "path": "typescript/tests/delivery-receipts.test.ts",
+      "bytes": 3773,
+      "sha256": "89d199bcfc4631dda9658015c58ae07d948c7f1d034f71ebe5522f6918b8b0cb"
+    },
+    {
+      "path": "typescript/tests/finish.test.ts",
+      "bytes": 10775,
+      "sha256": "1d6d7f276c01b356dcd189bf2379c41b7c0034d285882b1ca6d73fa9c43cbbc0"
+    },
+    {
+      "path": "typescript/tests/fixtures/operation-receipt.json",
+      "bytes": 3960,
+      "sha256": "db138b655db55b1b661c98bc1009c8aa914bcd3f3dbe281aa6b7ac0007b4328e"
+    },
+    {
+      "path": "typescript/tests/fixtures/operation-receipt.json.NOTICE",
+      "bytes": 67,
+      "sha256": "8a9f461fcbd6d8320bd73238c6c8bc7f980e9b424095135f1f288e6aa609a7b2"
+    },
+    {
+      "path": "typescript/tests/fixtures/packed-consumer/agents.mjs",
+      "bytes": 2297,
+      "sha256": "9d95c9846e8ee222d89c54e98bbd8d3facb1d5c3bf33ccfd5284aa30ab9ba958"
+    },
+    {
+      "path": "typescript/tests/fixtures/packed-consumer/consumer.cjs",
+      "bytes": 495,
+      "sha256": "a9888ea7fccd69bf717b0d8e238d03e98560ffa9e5339b8e05804bd23ea533e9"
+    },
+    {
+      "path": "typescript/tests/fixtures/packed-consumer/consumer.cts",
+      "bytes": 362,
+      "sha256": "5c26c30d30e3d506da79d1c1340b89e915a942431d48ccf70d604ec4f5062dc6"
+    },
+    {
+      "path": "typescript/tests/fixtures/packed-consumer/consumer.mjs",
+      "bytes": 3376,
+      "sha256": "4737e7503c9280c8295232a77d29e14f5237b7b85356647d5a2f74f56a8b7c21"
+    },
+    {
+      "path": "typescript/tests/fixtures/packed-consumer/consumer.mts",
+      "bytes": 4096,
+      "sha256": "c4c143ff48396863aeff413d198fa14dcbfa0da4195a34dc634fec7b7cbeba67"
+    },
+    {
+      "path": "typescript/tests/fixtures/packed-consumer/identity.mjs",
+      "bytes": 3439,
+      "sha256": "e66f25f7da9bf85c04c5e9dfd76c65eadbd7709910d4906725ec91e68c34b001"
+    },
+    {
+      "path": "typescript/tests/fixtures/packed-consumer/retained.mjs",
+      "bytes": 2426,
+      "sha256": "ec60331305317836e2c6b0fad12cfe5d3a494747b7af5eb1e37ff1f7b2c95db5"
+    },
+    {
+      "path": "typescript/tests/fixtures/recovery-feedback.json",
+      "bytes": 1929,
+      "sha256": "f657d89b68ebe76cd8cec0d8e65985e01aec79ec375285b26ce992cf73e2532b"
+    },
+    {
+      "path": "typescript/tests/fixtures/recovery-feedback.json.NOTICE",
+      "bytes": 67,
+      "sha256": "fbf0c00505d57a7df8ccd34abd1c147d43385aaa2bdfdb3a28d703ac5a01ff52"
+    },
+    {
+      "path": "typescript/tests/fixtures/semantic-definition-contract.json",
+      "bytes": 125152,
+      "sha256": "7f6090c93e1d54da6ba4d474e81fcd7912e84bc2b4071578c25a5a8daffaccfb"
+    },
+    {
+      "path": "typescript/tests/fixtures/semantic-definition-contract.json.NOTICE",
+      "bytes": 78,
+      "sha256": "7ae02668084501d09ed24bc81796526b3d881d016c6399978d79f54b0ab4519c"
+    },
+    {
+      "path": "typescript/tests/generated-smoke.test.ts",
+      "bytes": 2552,
+      "sha256": "8f807c028f05ef15e24219033353cf015b6e41aef78f13d553ec6497601d986a"
+    },
+    {
+      "path": "typescript/tests/hosted-contract.test.ts",
+      "bytes": 5953,
+      "sha256": "72c7c71acfc16881fc1c22ab4fdc365cca367695d6d81c4dcfaacdf20654364b"
+    },
+    {
+      "path": "typescript/tests/native-protocol.test.ts",
+      "bytes": 2117,
+      "sha256": "b4bd296e16d39e786fba6eb410b916fbffd573a7f8187c34b993fe10eec026d4"
+    },
+    {
+      "path": "typescript/tests/openai-agents.test.ts",
+      "bytes": 12662,
+      "sha256": "6229ed24fea61f5e558e697b401f0fd00b4043a5fc7d49f638f3778cc3eff59d"
+    },
+    {
+      "path": "typescript/tests/operations.test.ts",
+      "bytes": 21359,
+      "sha256": "0e833ebaa9be8f7013ec15bb95da558cce70489bfc4ed05f45d6a3403a969a14"
+    },
+    {
+      "path": "typescript/tests/parameter-provenance.test.ts",
+      "bytes": 864,
+      "sha256": "b659e2dd26fe81df6bc81aa45f80857b690143a46a1d343e56b43103235e2ccb"
+    },
+    {
+      "path": "typescript/tests/public-api.test.ts",
+      "bytes": 5886,
+      "sha256": "49fb5c6d2cdfa900e7e4f1e214f8a722b37d7cbb5351f483a62c6c8778c46c5b"
+    },
+    {
+      "path": "typescript/tests/public-rules.test.ts",
+      "bytes": 6258,
+      "sha256": "4a7f903a603b238ce151aa432cda2311c6ad7be9781d3d3514fe92e6acc0d0e5"
+    },
+    {
+      "path": "typescript/tests/recovery-feedback-errors.test.ts",
+      "bytes": 6924,
+      "sha256": "ed29dccfd0d74f18ec743998717a0a6d3ee198040755b278d001f79d18199be8"
+    },
+    {
+      "path": "typescript/tests/semantic-check.test.ts",
+      "bytes": 10940,
+      "sha256": "37c5ce6eb909d8b50f820aafeee7fd6afc9807c5acdc3fbdae49a9aec149ed3d"
+    },
+    {
+      "path": "typescript/tests/semantic-definition.test.ts",
+      "bytes": 9364,
+      "sha256": "57102557f33c0e99991d52d62e934c4f2c9a03a84dc97228c9695bbca8737ea8"
+    },
+    {
+      "path": "typescript/tests/test_package_payload.py",
+      "bytes": 8974,
+      "sha256": "07b890cc56ae4b6978b8e839e127ba6a7435e0ec86a881f4550e7364c707a132"
+    },
+    {
+      "path": "typescript/tsconfig.json",
+      "bytes": 535,
+      "sha256": "9d3f299a194e89ea861837676fbce21db2c2315440775fe9cc8144c1bd932b34"
+    },
+    {
+      "path": "typescript/tsup.config.ts",
+      "bytes": 287,
+      "sha256": "608bdfc5dc824324358d9d9ca80c0211c1574d7c91413493e1820f5f0086c8c7"
+    },
+    {
+      "path": "typescript/vitest.config.ts",
+      "bytes": 133,
+      "sha256": "e9ae92a53caf71a7fd50e9e25db5a029c8eb2b93ee1a0229c0e9bc52279491a9"
+    }
+  ]
+}

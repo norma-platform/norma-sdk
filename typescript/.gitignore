@@ -1,0 +1,7 @@
+node_modules/
+dist/
+artifacts/
+
+# Root .gitignore ignores any lib/ directory; keep generated SDK runtime helpers tracked.
+!src/generated/lib/
+!src/generated/lib/**

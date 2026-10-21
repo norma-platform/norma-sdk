@@ -1,0 +1,105 @@
+# Modified for Norma.
+[project]
+name = "norma-sdk"
+version = "8.7.1.dev1"
+description = "Python SDK for Norma - govern AI agents with policies and rules"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.26.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.0.0",  # For typed configuration via environment variables
+    "docstring-parser>=0.15",  # For @tool decorator schema inference
+]
+authors = [
+    {name = "Norma Contributors"}
+]
+readme = "README.md"
+license = {text = "Apache-2.0"}
+license-files = ["LICENSE", "NOTICE"]
+keywords = ["agent", "protection", "security", "sdk", "llm", "ai-safety"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.scripts]
+norma = "norma.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/norma-platform/norma-sdk"
+Documentation = "https://github.com/norma-platform/norma-sdk/tree/main/python#readme"
+Repository = "https://github.com/norma-platform/norma-sdk"
+
+[project.optional-dependencies]
+strands-agents = ["strands-agents>=1.26.0"]
+google-adk = ["google-adk>=1.7.0,<3"]
+pydantic-ai = ["pydantic-ai-slim>=2.51.0,<3"]
+openai-agents = ["openai-agents>=0.22.3,<0.23"]
+otel = [
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.24.0",
+]
+
+[dependency-groups]
+dev = [
+    "build>=1.2",
+    "hatchling>=1.27",
+    "editables>=0.5",
+    "jsonschema>=4.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "strands-agents>=1.26.0",  # For optional integration tests
+    "pydantic-ai-slim>=2.51.0,<3",  # For real optional framework tests
+    "openai-agents>=0.22.3,<0.23",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Only the hosted SDK namespace is distributed.
+packages = [
+    "src/norma",
+]
+
+[tool.hatch.build.targets.sdist]
+# An external source build needs only the package and its metadata. In particular,
+# never ship checkout test fixtures, local configuration, or acceptance receipts.
+include = ["/src/norma", "/pyproject.toml", "/README.md", "/GOOGLE_ADK.md", "/OPENAI_AGENTS.md", "/LICENSE", "/NOTICE"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade
+]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["norma"]
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_schema_derivation.py" = ["UP042"]

@@ -1,0 +1,9 @@
+Norma Python SDK
+
+Norma builds on Agent Control (https://github.com/agentcontrol/agent-control),
+a project maintained by Galileo (https://agentcontrol.dev/).
+The upstream Python package author metadata credits "Agent Control Team".
+Distributed under Apache License 2.0. Modified for Norma. Existing copyright and attribution
+notices in individual source files remain applicable.
+
+Source: https://github.com/norma-platform/norma-sdk

@@ -1,0 +1,10 @@
+const assert = require("node:assert/strict");
+const sdk = require("norma-sdk");
+assert.equal(typeof sdk.default.init, "function");
+assert.equal(typeof sdk.NormaClient, "function");
+assert.equal(sdk.NormaClient.name, "NormaClient");
+assert.ok(sdk.default instanceof sdk.NormaClient);
+assert.equal(typeof sdk.HTTPClient, "function");
+assert.equal("toNormaSemanticAnswer" in sdk, false);
+assert.equal("toRuntimeSemanticDefinition" in sdk, false);
+console.log("Packed CommonJS public API passed.");

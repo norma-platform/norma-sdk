@@ -1,0 +1,143 @@
+# Norma TypeScript SDK
+
+A typed client for the hosted Norma runtime. Requires Node.js 20 or later.
+
+```sh
+npm install /path/to/norma-sdk-4.0.0-dev.0.tgz
+export NORMA_RUNTIME_URL=https://your-tenant.example/api/runtime
+export NORMA_AGENT_KEY=your-agent-key
+```
+
+The tested local prerelease is `norma-sdk@4.0.0-dev.0`. An unversioned registry install does not identify this candidate. Registry publication and package-name ownership have not been established.
+
+Use the runtime URL from your Norma connection settings, including its path prefix. The Agent Key is sent in `X-API-Key`. HTTPS is required except for loopback development. Redirects are rejected. There is no auth-mode or tenant-ID setting.
+
+```ts
+import { NormaClient, checkpoint } from "norma-sdk";
+
+const client = new NormaClient();
+client.init({ agentName: "support-agent" });
+
+// Registration requires this application name to be authorized by the key.
+await client.agents.register({
+  agent: { agentName: "support-agent" },
+  steps: [{ type: "tool", name: "send_message", inputSchema: { type: "object" } }],
+});
+
+const send = checkpoint(async (message: string) => {
+  return sendMessage(message); // your application function
+}, { client, stepName: "send_message" });
+await send("Hello");
+await client.flushObservability();
+```
+
+`agentName` identifies your application agent, not a customer account. `runtimeUrl` and `agentKey` may be provided explicitly to `init` instead of the two environment variables. Keep keys on a trusted server. A custom `HTTPClient` is an advanced trusted transport boundary.
+
+The runtime must support `hosted-v1`: every check sends `execution_mode: "hosted"` and requires `execution_contract: "hosted-v1"` in the response. Missing proof fails closed; an older runtime must be upgraded. The runtime must reject local-only rules from the same effective-rule snapshot used to evaluate.
+
+`checkpoint` evaluates before and after one invocation. A denied or failed precheck prevents the function from running. A failed postcheck raises `CheckError` after the function has run; do not automatically replay that action. `RuleViolationError` and `RuleSteerError` expose rule and check IDs. `checkFinish` and `TurnRecorder` support bounded final-turn checks and action recording.
+
+### Observed state
+
+Pass a small explicit JSON object when values are already available, or a synchronous/asynchronous
+`state` callback when each invocation needs its own values:
+
+```ts
+const reserve = checkpoint(
+  async (orderId: string, quantity: number) => reserveAtomically(orderId, quantity),
+  {
+    client,
+    stepName: "reserve_inventory",
+    state: async (orderId, _quantity) => {
+      // Application code must authorize the entity for the authenticated request.
+      const order = await loadAuthorizedOrder(orderId);
+      return { order: { id: orderId, available: order.available } };
+    },
+  },
+);
+await reserve("order-123", 2);
+
+// For values already available in a trusted request handler:
+const sendReport = checkpoint(sendReportFile, {
+  client, state: { plan: "standard", remainingBytes: 4096 },
+});
+```
+
+The SDK captures state once at invocation, before the precheck, and places the copied values in
+`step.context.state`. Both precheck and postcheck use that same snapshot; the postcheck does not
+fetch current state again. A new invocation captures new values. Generic tool arguments remain
+`step.input.args`. State adds no SDK environment variables,
+global current-user value, or required metadata/schema registration.
+
+In the Console, a Rego condition can select the whole checkpoint with an explicit
+input view. The existing Rule action determines what a match does:
+
+```json
+{
+  "selector": {"path": "*"},
+  "evaluator": {
+    "name": "rego",
+    "config": {
+      "input_view": "checkpoint-v1",
+      "query": "input.args[1] > input.state.order.available"
+    }
+  }
+}
+```
+
+The SDK marks positional arguments explicitly, so this view exposes `input.args`
+as an array and `input.state` as the observed object. Optional `input_schema`
+validates that adapted object and can require critical fields/types. Missing
+state becomes `{}`; an undefined query does not match. The Step wire shape stays
+unchanged. Existing Rules without `input_view` retain the selected payload
+(`input.input.args` and `input.context.state` for a whole Step); older SDKs without
+the positional marker should keep that view until upgraded.
+
+Snapshots accept plain JSON objects, nested objects/arrays, strings, booleans, null, and finite
+numbers. Integers must be within ±(2^53−1); negative zero is rejected. Limits are 65,536 serialized
+UTF-8 bytes, depth 32 (root depth zero), and 10,000 nodes counting values/containers and object keys.
+Cycles, sparse arrays, classes, getters, `toJSON` functions, and other non-JSON values are rejected.
+Select only the facts needed by Rules; do not pass entire application objects or secrets.
+Callback arguments are immutable copies. Callback or state-validation failure raises `CheckError`
+with `stage: "pre"` before any action; callback exception text is not included.
+
+State is sent for evaluation regardless of retention settings. Retaining the evaluated snapshot
+requires the workspace's supported capture/retention configuration; supplying state alone does not
+enable retention. Authentication scopes the workspace through the Agent Key, while the application
+remains responsible for authenticating users and authorizing entity lookups. Concurrent invocations
+have independent snapshots, but snapshots do not reserve inventory, lock records, or prevent two
+actions from spending the same balance. Keep those guarantees in application transactions.
+
+Finish checks preserve the advisory final-message contract: network/authentication failures, invalid responses, and missing hosted proof return `verdict: "unavailable"`, `allow_finish: true`, and `outcome: "finished_unverified"`. This permits an explicitly unverified final message; it is never a passed check, authorization for a tool action, or evidence of successful execution. Applications requiring a verified finish must require `verdict === "pass"` before accepting it. Guarded tool actions still fail closed.
+
+For applications that own execution explicitly:
+
+```ts
+const decision = await client.checks.check({
+  stage: "pre",
+  step: { type: "tool", name: "send_message", input: { message: "Hello" } },
+});
+if (!decision.allowed) throw new Error("Action blocked by Norma");
+```
+
+The client also provides agent registration/read/update, evaluator discovery, binding reads, observation delivery, and `operations.create/get/list/observe/linkVerification` for typed operation receipts. Receipts record server decisions and caller-reported observations; they do not prove that an external side effect happened. Semantic definition helpers validate and convert DTOs only. Authoring and account administration belong in the hosted Console; this package contains no authoring transport, evaluator implementation, database, or service launcher.
+
+Public APIs expose Rules and Decisions, including agent rule lists, rule bindings, error identifiers, semantic answers, and operation receipts. The runtime and SDK use the same native Rules/Checks protocol; internal codecs only validate and map snake_case JSON to typed JavaScript fields. `public-contract.json` records the allowlisted transport surface. Changes to it and DTOs must be reviewed together; builds do not read or generate from a private server schema.
+
+From this directory, use `make install`, then `make check`. The checks include lint, types, unit tests, a 14-file tarball allowlist, and ESM/CommonJS plus strict TypeScript consumers installed outside this repository without workspace links. Packages contain no source maps. `make release-check` prepares local artifacts; publication is disabled.
+
+Licensed under Apache-2.0. Preserve `LICENSE` and `THIRD_PARTY_NOTICES` when redistributing.
+
+### Public contract
+
+Use `client.agents.listRules({ agentName })`, `client.ruleBindings.list({ ruleId })`, and `client.checks.check(...)`. A `Decision` contains `allowed`, `reason`, and `checks`; each check carries `ruleId`, `ruleName`, `checkId`, `status`, and its result. There is no public raw check escape hatch. Errors expose Rule and check identifiers only.
+
+Operation receipts expose `rules` and a normalized `decision` (including the retained `outcome`). A historical unsupported rule remains visible with `status: "unsupported"` and a null definition; it cannot become an authorable hosted `RuleDefinition`. New operations still reject unsupported rule snapshots. Hosted definitions require `execution: "server"`.
+
+This version uses native Rules/Checks routes and fields throughout. Semantic authoring uses statement, choice, and score forms; alternate authoring vocabularies and runtime conversion helpers are removed. Statement answers use `type: "statement"` and `support_score`. Caller-owned payloads and evidence are preserved without recursively renaming their keys.
+
+Operation `decision.allowed` follows the validated retained operation outcome, including explicitly nonblocking observe rules and `unresolvedPolicy: "allow"`. Evaluator errors never grant new permission: historical receipts can retain `outcome: "allow"` from older permissive error policies while reporting `allowed: false`. Checkpoints remain strict and block an unsafe runtime check. A failed reconfiguration invalidates the previous client identity.
+
+## Optional OpenAI Agents integration
+
+Use `normaTool` from `norma-sdk/openai-agents` with separately installed `@openai/agents@0.20.0` for native function-tool guardrails and per-agent call records. See [the integration guide](https://github.com/norma-platform/norma-sdk/blob/main/typescript/OPENAI_AGENTS.md) for supported schemas and enforcement limits. Generic `checkpoint` remains available without framework dependencies.

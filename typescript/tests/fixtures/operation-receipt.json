@@ -1,0 +1,153 @@
+{
+  "id": "f84a7edc-0d5f-4b6c-b31c-bd5cd5adbe99",
+  "operation_key": "proposal-1",
+  "agent_name": "operations-agent",
+  "target_type": null,
+  "target_id": null,
+  "created_at": "2026-10-09T19:00:00Z",
+  "request_fingerprint": "synthetic-request",
+  "request": {
+    "agent_name": "operations-agent",
+    "operation_key": "proposal-1",
+    "step": {
+      "type": "tool",
+      "name": "write_record",
+      "input": {
+        "price_usd": 450
+      },
+      "output": null,
+      "context": null,
+      "tools": null,
+      "ground_truth": null
+    },
+    "stage": "pre",
+    "target_type": null,
+    "target_id": null,
+    "error_policy": "block",
+    "unresolved_policy": "block",
+    "evidence": []
+  },
+  "decision": {
+    "outcome": "allow",
+    "reason": "Synthetic fixture: no rule blocked",
+    "check": {
+      "allowed": true,
+      "confidence": 1.0,
+      "reason": null,
+      "matches": null,
+      "errors": null,
+      "non_matches": null,
+      "execution_contract": "hosted-v1"
+    }
+  },
+  "rules": [
+    {
+      "rule_id": 12,
+      "name": "numeric-check",
+      "version": 3,
+      "definition": {
+        "condition": {
+          "selector": {
+            "path": "input"
+          },
+          "evaluator": {
+            "name": "json",
+            "config": {
+              "field_constraints": {
+                "price_usd": {
+                  "max": 500
+                }
+              }
+            }
+          },
+          "and": null,
+          "or": null,
+          "not": null
+        },
+        "description": null,
+        "enabled": true,
+        "execution": "server",
+        "scope": {
+          "step_types": null,
+          "step_names": null,
+          "step_name_regex": null,
+          "stages": null
+        },
+        "action": {
+          "decision": "deny",
+          "steering_context": null
+        },
+        "tags": []
+      },
+      "definition_fingerprint": "synthetic-rule",
+      "disposition": "evaluated"
+    }
+  ],
+  "observations": [
+    {
+      "id": "report-1",
+      "event_key": "effect-1",
+      "kind": "succeeded",
+      "summary": "Synthetic caller report",
+      "external_reference": "local-record-1",
+      "recorded_at": "2026-10-09T19:01:00Z",
+      "source": "caller_reported"
+    }
+  ],
+  "verifications": [
+    {
+      "session_id": "verification-1",
+      "revision": 1,
+      "claim": "postcondition_assessed",
+      "assessment": {
+        "revision": 1,
+        "subject_version": "1",
+        "definition_fingerprint": "synthetic-purpose",
+        "previous_assessment_fingerprint": null,
+        "fingerprint": "synthetic-assessment",
+        "outcome": "unknown",
+        "claim_scope": "correlated_external_effect",
+        "criteria": [
+          {
+            "criterion_id": "record-present",
+            "status": "unknown",
+            "basis": "exact_check",
+            "reason": "Fixture has no trusted source",
+            "evidence_ids": [
+              "outbox"
+            ],
+            "observed_value_fingerprint": null
+          }
+        ],
+        "observed_facts": [
+          {
+            "id": "fact-1",
+            "evidence_id": "outbox",
+            "origin": "caller_asserted",
+            "source_id": null,
+            "source_version": null,
+            "subject_id": "local-record-1",
+            "subject_version": "1",
+            "correlation_id": "op-1",
+            "related_subject_ids": [],
+            "observed_at": null,
+            "received_at": "2026-10-09T19:02:00Z",
+            "fingerprint": "synthetic-fact",
+            "status": "untrusted"
+          }
+        ],
+        "inferred_judgment": null,
+        "satisfied_criteria": [],
+        "unsatisfied_criteria": [
+          "record-present"
+        ],
+        "assessed_at": "2026-10-09T19:02:00Z",
+        "valid_until": null,
+        "note": null
+      },
+      "linked_at": "2026-10-09T19:02:00Z"
+    }
+  ],
+  "discrepancy": "none",
+  "current_outcome": "succeeded"
+}

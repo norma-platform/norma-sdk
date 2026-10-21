@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "description": "Allowlisted hosted Norma Agent Key transport with native Rules and Checks contracts.",
+  "generatedRoutes": [
+    {
+      "file": "src/generated/funcs/agents-get-evaluator.ts",
+      "method": "GET",
+      "path": "/api/v1/agents/{agent_name}/evaluators/{evaluator_name}"
+    },
+    {
+      "file": "src/generated/funcs/agents-get.ts",
+      "method": "GET",
+      "path": "/api/v1/agents/{agent_name}"
+    },
+    {
+      "file": "src/generated/funcs/agents-list-evaluators.ts",
+      "method": "GET",
+      "path": "/api/v1/agents/{agent_name}/evaluators"
+    },
+    {
+      "file": "src/generated/funcs/agents-list-rules.ts",
+      "method": "GET",
+      "path": "/api/v1/agents/{agent_name}/rules"
+    },
+    {
+      "file": "src/generated/funcs/agents-list.ts",
+      "method": "GET",
+      "path": "/api/v1/agents"
+    },
+    {
+      "file": "src/generated/funcs/agents-register.ts",
+      "method": "POST",
+      "path": "/api/v1/agents/register"
+    },
+    {
+      "file": "src/generated/funcs/agents-update.ts",
+      "method": "PATCH",
+      "path": "/api/v1/agents/{agent_name}"
+    },
+    {
+      "file": "src/generated/funcs/checks-check.ts",
+      "method": "POST",
+      "path": "/api/v1/checks"
+    },
+    {
+      "file": "src/generated/funcs/evaluators-list.ts",
+      "method": "GET",
+      "path": "/api/v1/evaluators"
+    },
+    {
+      "file": "src/generated/funcs/observability-ingest-events.ts",
+      "method": "POST",
+      "path": "/api/v1/observability/events"
+    },
+    {
+      "file": "src/generated/funcs/rule-bindings-get.ts",
+      "method": "GET",
+      "path": "/api/v1/rule-bindings/{binding_id}"
+    },
+    {
+      "file": "src/generated/funcs/rule-bindings-list.ts",
+      "method": "GET",
+      "path": "/api/v1/rule-bindings"
+    }
+  ],
+  "operationRoutes": [
+    "POST /api/v1/operations",
+    "GET /api/v1/operations",
+    "GET /api/v1/operations/{operation_id}",
+    "POST /api/v1/operations/{operation_id}/observations",
+    "POST /api/v1/operations/{operation_id}/verification"
+  ],
+  "finishRoute": "POST /api/v1/checks",
+  "dependencies": [
+    "zod"
+  ],
+  "checkProof": {
+    "request": {
+      "execution_mode": "hosted"
+    },
+    "response": {
+      "execution_contract": "hosted-v1"
+    },
+    "missingOrUnknown": "fail_closed",
+    "atomicity": "Required runtime guarantee: validate local-rule absence from the same effective-rule snapshot used for check."
+  },
+  "_norma_notice": "Modified for Norma."
+}
