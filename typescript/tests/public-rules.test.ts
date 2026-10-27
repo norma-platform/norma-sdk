@@ -51,10 +51,14 @@ describe("public Rules contract", () => {
     expect(effect).not.toHaveBeenCalled();
   });
   it("maps agent rule lists and rejects local definitions as hosted authoring", async () => {
-    const definition = {execution: "server", enabled: true, action: {decision: "deny"}, condition: {selector: {path: "input"}, evaluator: {name: "json", config: {}}}};
+    const definition = {execution: "server", enabled: true, action: {decision: "deny"}, condition: {selector: {path: "input"}, evaluator: {name: "json", config: {}}},
+      template: {definition_template: {}}, template_values: {x: "value"}, parameters: {contract: "policy-parameters-v1"}};
     const result = await client({rules: [{id: 12, name: "hosted", rule: definition},
       {id: 13, name: "historical", rule: {...definition, execution: "sdk"}}]}).agents.listRules({agentName: "quotation-agent"});
     expect(result.rules[0]).toMatchObject({status: "hosted", definition: {execution: "server"}});
+    expect(result.rules[0].definition).not.toHaveProperty("template");
+    expect(result.rules[0].definition).not.toHaveProperty("templateValues");
+    expect(result.rules[0].definition).not.toHaveProperty("parameters");
     expect(result.rules[1]).toMatchObject({status: "unsupported", definition: null});
     assertPublic(result);
   });

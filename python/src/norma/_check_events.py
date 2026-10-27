@@ -12,6 +12,7 @@ from norma._wire.exports import (
     RuleDefinitionRuntime,
     RuleMatch,
 )
+from norma.models.control_evidence import ControlEvidenceSnapshot
 
 from .observability import get_logger, is_observability_enabled, write_events
 
@@ -115,6 +116,9 @@ def _build_events_for_matches(
     span_id: str,
     agent_name: str,
     now: datetime,
+    control_evidence: list[ControlEvidenceSnapshot] | None = None,
+    control_contract: str | None = None,
+    agent_generation: str | None = None,
 ) -> list[RuleCheckEvent]:
     if not matches:
         return []
@@ -145,6 +149,67 @@ def _build_events_for_matches(
             observation = match.result.semantic_observation
             event_metadata["semantic_observation_id"] = observation.observation_id
             event_metadata["check_release"] = observation.check_release
+        if control_contract == "rule-controls-v1":
+            evidence_rows = [
+                item for item in control_evidence or []
+                if getattr(item, "rule_id", None) == match.rule_id
+            ]
+            event_metadata["control_contract"] = control_contract
+            if agent_generation is not None:
+                event_metadata["agent_generation"] = agent_generation
+            if evidence_rows:
+                event_metadata["control_evidence"] = [
+                    {
+                        "completeness": getattr(item, "completeness"),
+                        "definition_fingerprint": getattr(item, "definition_fingerprint"),
+                        "references": [
+                            {
+                                "destination_pointer": getattr(reference, "destination_pointer"),
+                                "disposition": getattr(reference, "disposition"),
+                                **(
+                                    {"unavailable_reason": getattr(reference, "unavailable_reason")}
+                                    if getattr(reference, "unavailable_reason", None) is not None
+                                    else {}
+                                ),
+                                "numeric_comparisons": [
+                                    {
+                                        "field_path": getattr(comparison, "field_path"),
+                                        "operator": getattr(comparison, "operator"),
+                                        "outcome": getattr(comparison, "outcome"),
+                                        **(
+                                            {
+                                                "observed_state": getattr(
+                                                    comparison, "observed_state"
+                                                )
+                                            }
+                                            if getattr(comparison, "observed_state", None)
+                                            is not None
+                                            else {}
+                                        ),
+                                        **(
+                                            {"reason": getattr(comparison, "reason")}
+                                            if getattr(comparison, "reason", None) is not None
+                                            else {}
+                                        ),
+                                    }
+                                    for comparison in getattr(reference, "numeric_comparisons", [])
+                                ],
+                                **(
+                                    {
+                                        "numeric_comparisons_truncated": getattr(
+                                            reference, "numeric_comparisons_truncated"
+                                        )
+                                    }
+                                    if getattr(reference, "numeric_comparisons_truncated", None)
+                                    is not None
+                                    else {}
+                                ),
+                            }
+                            for reference in getattr(item, "references", [])
+                        ],
+                    }
+                    for item in evidence_rows
+                ]
         selector_path = None
         evaluator_name = None
 
@@ -218,6 +283,9 @@ def build_rule_check_events(
             span_id=resolved_span_id,
             agent_name=resolved_agent_name,
             now=now,
+            control_evidence=response.control_evidence,
+            control_contract=response.control_contract,
+            agent_generation=response.agent_generation,
         )
     )
     events.extend(
@@ -231,6 +299,9 @@ def build_rule_check_events(
             span_id=resolved_span_id,
             agent_name=resolved_agent_name,
             now=now,
+            control_evidence=response.control_evidence,
+            control_contract=response.control_contract,
+            agent_generation=response.agent_generation,
         )
     )
     events.extend(
@@ -244,6 +315,9 @@ def build_rule_check_events(
             span_id=resolved_span_id,
             agent_name=resolved_agent_name,
             now=now,
+            control_evidence=response.control_evidence,
+            control_contract=response.control_contract,
+            agent_generation=response.agent_generation,
         )
     )
     events.extend(
@@ -257,6 +331,9 @@ def build_rule_check_events(
             span_id=resolved_span_id,
             agent_name=resolved_agent_name,
             now=now,
+            control_evidence=response.control_evidence,
+            control_contract=response.control_contract,
+            agent_generation=response.agent_generation,
         )
     )
     return events

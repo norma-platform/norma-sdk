@@ -6,15 +6,76 @@ import { NormaClient, HTTPClient, NormaAPIError, checkpoint, RuleViolationError,
 const json = (data: unknown, status = 200, headers = {}) => new Response(JSON.stringify(data), {
   status, headers: { "content-type": "application/json", ...headers },
 });
-function client(fetcher: (request: Request) => Promise<Response>): NormaClient {
+function client(fetcher: (request: Request) => Promise<Response>, controlContract?: "rule-controls-v1"): NormaClient {
   const client = new NormaClient();
-  client.init({ agentName: "public-agent", agentKey: "synthetic-test-key", runtimeUrl: "https://norma.invalid", observabilityEnabled: false,
+  client.init({ agentName: "public-agent", agentKey: "synthetic-test-key", runtimeUrl: "https://norma.invalid", observabilityEnabled: false, controlContract,
     httpClient: new HTTPClient({ fetcher }) });
   return client;
 }
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("Norma setup and vocabulary", () => {
+
+  it("preserves a frozen controlled-rule receipt through public list and register APIs", async () => {
+    const receipt = {
+      contract: "rule-controls-v1", capabilities_fingerprint: "a".repeat(64),
+      declaration_fingerprint: "b".repeat(64), defaults: { age: 90 }, effective_values: { age: 120 },
+      values_fingerprint: "c".repeat(64), value_sources: { age: "agent_override" },
+      references: [{ key: "age", source_pointer: "/controls/age/default",
+        destination_pointer: "/condition/evaluator/config/field_constraints/age/min",
+        evaluator_pointer: "/condition/evaluator", slot: { control_types: ["number"] } }],
+      overridden_keys: ["age"], agent_generation: "generation-1", agent_name: "public-agent",
+      rule_id: 7, rule_version: 3, override_revision: 4, effective_fingerprint: "d".repeat(64),
+    };
+    const payload = {
+      rules: [{ id: 7, name: "age-check", rule: { execution: "server", enabled: true, mode: "enforce",
+        action: { decision: "deny" }, condition: { selector: { path: "*" },
+          evaluator: { name: "json", config: { field_constraints: { age: { min: 120 } } } } } } }],
+      control_contract: "rule-controls-v1", agent_generation: "generation-1", control_resolutions: [receipt],
+      created: false, overwrite_applied: false,
+    };
+    const fetcher = vi.fn(async (request: Request) => {
+      expect(request.headers.get("X-Norma-Control-Contract")).toBe("rule-controls-v1");
+      return json(payload, 200, { "X-Norma-Control-Contract": "rule-controls-v1" });
+    });
+    const sdk = client(fetcher, "rule-controls-v1");
+
+    const listed = await sdk.agents.listRules({ agentName: "public-agent" });
+    const registered = await sdk.agents.register({ agent: { agentName: "public-agent" } });
+
+    for (const result of [listed, registered]) {
+      expect(result.controlContract).toBe("rule-controls-v1");
+      expect(result.agentGeneration).toBe("generation-1");
+      expect(result.controlResolutions?.[0]?.effectiveValues).toEqual({ age: 120 });
+      expect(Object.isFrozen(result.controlResolutions?.[0]?.effectiveValues)).toBe(true);
+      expect(Object.isFrozen(result.controlResolutions?.[0])).toBe(true);
+    }
+    expect(listed.rules).toHaveLength(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.every(([request]) => request.headers.get("X-Norma-Control-Contract") === "rule-controls-v1")).toBe(true);
+  });
+
+  it("keeps legacy headerless agent-rule reads free of synthetic control state", async () => {
+    const sdk = client(async () => json({ rules: [] }));
+    const listed = await sdk.agents.listRules({ agentName: "public-agent" });
+    expect(listed).toEqual({ rules: [] });
+  });
+
+  it("rejects a malformed control receipt in the public agent-rule response", async () => {
+    const malformed = {
+      rules: [], control_contract: "rule-controls-v1", agent_generation: "generation-1",
+      control_resolutions: [{ contract: "rule-controls-v1", capabilities_fingerprint: "a".repeat(64),
+        declaration_fingerprint: "b".repeat(64), defaults: { age: 90 }, effective_values: { age: 120 },
+        values_fingerprint: "c".repeat(64), value_sources: { age: "agent_override" }, references: [],
+        overridden_keys: ["age"], agent_generation: "generation-1", agent_name: "public-agent",
+        rule_id: 7, rule_version: 3, override_revision: "4", effective_fingerprint: "d".repeat(64) }],
+    };
+    const sdk = client(async () => json(malformed, 200, {
+      "X-Norma-Control-Contract": "rule-controls-v1",
+    }), "rule-controls-v1");
+
+    await expect(sdk.agents.listRules({ agentName: "public-agent" })).rejects.toThrow();
+  });
 
 
   it("uses the actual registration StepSchema and defaults to strict", async () => {

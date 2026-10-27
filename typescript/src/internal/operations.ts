@@ -9,6 +9,8 @@ import type { NormaSDK } from "../generated/sdk/sdk";
 import { extractSecurity, resolveGlobalSecurity } from "../generated/lib/security";
 import { RuleDefinitionOutput$inboundSchema } from "../generated/models/rule-definition-output";
 import { CheckResponse$inboundSchema } from "../generated/models/check-response";
+import { ControlReceipt$inboundSchema } from "../generated/models/control-evidence";
+import type { ControlReceipt } from "../generated/models/control-evidence";
 import { decisionFromWire, ruleDefinitionFromWire } from "./public-adapters";
 import type { Decision, RuleDefinition } from "../public-api";
 import type { JsonObject } from "../types";
@@ -75,8 +77,10 @@ const ruleSnapshot = z.object({
   rule_id: z.int(), name: z.string(), version: z.int().nullable().optional(),
   definition: RuleDefinitionOutput$inboundSchema, definition_fingerprint: z.string(),
   disposition: z.enum(["evaluated", "cancelled", "skipped", "unknown"]),
-}).transform(({ rule_id, definition_fingerprint, ...rest }) => ({
+  agent_generation: optionalText, control_resolution: z.optional(z.nullable(ControlReceipt$inboundSchema)),
+}).transform(({ rule_id, definition_fingerprint, agent_generation, control_resolution, ...rest }) => ({
   ...rest, ruleId: rule_id, definitionFingerprint: definition_fingerprint,
+  agentGeneration: agent_generation, controlResolution: control_resolution,
 }));
 const observation = z.object({
   id: z.string(), event_key: z.string(), kind: z.enum(["attempted", "succeeded", "failed", "unknown"]),
@@ -134,14 +138,17 @@ const verification = z.object({
 }).transform(({ session_id, linked_at, ...rest }) => ({ ...rest, sessionId: session_id, linkedAt: linked_at }));
 const operationRecordSchema = z.object({
   id: text(255), operation_key: text(128), agent_name: z.string(), target_type: optionalText, target_id: optionalText,
+  control_contract: z.optional(z.nullable(z.literal("rule-controls-v1"))), agent_generation: optionalText,
   created_at: z.string(), request_fingerprint: z.string(), request: retainedRequest,
   decision: z.object({ outcome: z.enum(["allow", "deny", "steer"]), reason: z.string(), check: retainedCheck }),
   rules: z.array(ruleSnapshot), observations: z.array(observation), verifications: z.array(verification),
   discrepancy: z.enum(["none", "reported_execution_after_denial"]),
   current_outcome: z.enum(["not_observed", "attempted", "succeeded", "failed", "unknown", "conflicting"]),
-}).transform(({ operation_key, agent_name, target_type, target_id, created_at, request_fingerprint, current_outcome, ...rest }) => ({
+}).transform(({ operation_key, agent_name, target_type, target_id, created_at, request_fingerprint, current_outcome,
+  control_contract, agent_generation, ...rest }) => ({
   ...rest, operationKey: operation_key, agentName: agent_name, targetType: target_type, targetId: target_id,
   createdAt: created_at, requestFingerprint: request_fingerprint, currentOutcome: current_outcome,
+  controlContract: control_contract, agentGeneration: agent_generation,
 }));
 type WireOperationRecord = z.output<typeof operationRecordSchema>;
 export interface OperationObservation extends ObserveOperation {id: string; recordedAt: string; source: "caller_reported"}
@@ -167,12 +174,14 @@ export interface OperationVerification {
 }
 export interface OperationRecord {
   id: string; operationKey: string; agentName: string; targetType?: string | null; targetId?: string | null;
+  controlContract?: "rule-controls-v1" | null; agentGeneration?: string | null;
   createdAt: string; requestFingerprint: string;
   request: {agentName: string; operationKey: string; stage: "pre"; targetType?: string | null; targetId?: string | null;
     step: CreateOperation["step"]; errorPolicy: "allow" | "block"; unresolvedPolicy: "allow" | "block"; evidence: {id: string; summary: string; source: string}[]};
   decision: Decision & {outcome: "allow" | "deny" | "steer"};
   rules: {ruleId: number; name: string; version?: number | null; definition: RuleDefinition | null;
-    status: "hosted" | "unsupported"; definitionFingerprint: string; disposition: "evaluated" | "cancelled" | "skipped" | "unknown"}[];
+    status: "hosted" | "unsupported"; definitionFingerprint: string; disposition: "evaluated" | "cancelled" | "skipped" | "unknown";
+    agentGeneration?: string | null; controlResolution?: ControlReceipt | null}[];
   observations: OperationObservation[]; verifications: OperationVerification[];
   discrepancy: "none" | "reported_execution_after_denial";
   currentOutcome: "not_observed" | "attempted" | "succeeded" | "failed" | "unknown" | "conflicting";

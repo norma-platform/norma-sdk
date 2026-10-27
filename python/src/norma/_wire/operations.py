@@ -9,6 +9,7 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ..models.agent import AGENT_NAME_MIN_LENGTH, AGENT_NAME_PATTERN, Step, normalize_agent_name
 from ..models.base import BaseModel
+from ..models.control_evidence import ControlReceipt
 from .checks import CheckResponse
 from .rules import RuleDefinitionRuntime
 from .verification import VerificationAssessment
@@ -89,6 +90,8 @@ class OperationRuleSnapshot(BaseModel):
     definition: RuleDefinitionRuntime
     definition_fingerprint: str
     disposition: Literal["evaluated", "cancelled", "skipped", "unknown"]
+    agent_generation: str | None = None
+    control_resolution: ControlReceipt | None = None
 
 
 class OperationDecision(BaseModel):
@@ -128,6 +131,8 @@ class OperationRecord(BaseModel):
     id: str
     operation_key: str
     agent_name: str
+    agent_generation: str | None = None
+    control_contract: Literal["rule-controls-v1"] | None = None
     target_type: str | None = None
     target_id: str | None = None
     created_at: datetime
@@ -147,6 +152,7 @@ class OperationListResponse(BaseModel):
     """Operations for one authorized agent."""
 
     operations: list[OperationRecord] = Field(default_factory=list)
+    control_contract: Literal["rule-controls-v1"] | None = None
 
 
 class AddOperationObservationRequest(OperationRequestModel):

@@ -6,9 +6,9 @@ import { NormaClient } from "../src/client";
 import { checkpoint } from "../src/checkpoint";
 import { checkFinish, TurnRecorder } from "../src/finish";
 
-function client(): NormaClient {
+function client(controlContract?: "rule-controls-v1"): NormaClient {
   const active = new NormaClient();
-  active.init({ agentName: "coding-agent",  runtimeUrl: "http://localhost:8000", agentKey: "test-key" });
+  active.init({ agentName: "coding-agent", runtimeUrl: "http://localhost:8000", agentKey: "test-key", controlContract });
   return active;
 }
 
@@ -99,6 +99,39 @@ describe("checkFinish", () => {
     expect(body).toMatchObject({ agent_name: "coding-agent", stage: "pre", step: { type: "turn", name: "typescript-sdk.finish", input: { final_message: "All tests pass. Bearer [REDACTED]" } } });
   });
 
+  it("negotiates and retains finish control evidence only after both acknowledgements", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      execution_contract: "hosted-v1", control_contract: "rule-controls-v1", agent_generation: "generation-1",
+      control_resolutions: null,
+      control_evidence: [{ schema_version: 1, completeness: "unavailable", agent_name: "coding-agent",
+        agent_generation: "generation-1", rule_id: 7, rule_version: null, definition_fingerprint: "a".repeat(64), references: [] }],
+      verdict: "pass", reason: "Done", reason_codes: [], held_by: [], would_hold_by: [],
+      continuation: { count: 0, max: 2 }, allow_finish: true, outcome: "completed", provider_input_tokens: null,
+    }), { status: 200, headers: { "content-type": "application/json", "X-Norma-Control-Contract": "rule-controls-v1" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const verdict = await checkFinish(new TurnRecorder({ sessionId: "s", turnId: "t" }).turn("Done"), {
+      client: client("rule-controls-v1"),
+    });
+    expect(verdict).toMatchObject({ control_contract: "rule-controls-v1", agent_generation: "generation-1",
+      control_evidence: [{ completeness: "unavailable" }] });
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.headers.get("X-Norma-Control-Contract")).toBe("rule-controls-v1");
+  });
+
+  it("does not trust an opted-in finish without both acknowledgements and never replays it", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      execution_contract: "hosted-v1", control_contract: "rule-controls-v1", verdict: "pass", reason: "Done",
+      reason_codes: [], held_by: [], would_hold_by: [], continuation: { count: 0, max: 2 },
+      allow_finish: true, outcome: "completed", provider_input_tokens: null,
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const verdict = await checkFinish(new TurnRecorder({ sessionId: "s", turnId: "t" }).turn("Done"), {
+      client: client("rule-controls-v1"),
+    });
+    expect(verdict).toMatchObject({ verdict: "unavailable", allow_finish: true, outcome: "finished_unverified" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("allows an unverified finish when the runtime is unavailable", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
     const recorder = new TurnRecorder({ sessionId: "session-4", turnId: "turn-4" });
@@ -176,6 +209,21 @@ describe("checkFinish", () => {
     const turn = new TurnRecorder({ sessionId: "s", turnId: "t", maxContinuations: 3 }).turn("Done", 3);
     expect((await checkFinish(turn, { client: client() })).verdict).toBe("unavailable");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds opted-in finish bodies before acknowledgement parsing and cancels oversized streams", async () => {
+    let cancelled = false;
+    const fetchMock = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new Uint8Array(300_000)); },
+      cancel() { cancelled = true; },
+    }), { status: 200, headers: { "X-Norma-Control-Contract": "rule-controls-v1" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await checkFinish(new TurnRecorder({ sessionId: "s", turnId: "t" }).turn("Done"), {
+      client: client("rule-controls-v1"),
+    });
+    expect(result).toMatchObject({ verdict: "unavailable", outcome: "finished_unverified" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(cancelled).toBe(true);
   });
 
   it("does not accept a server verdict that elevates the host continuation limit", async () => {

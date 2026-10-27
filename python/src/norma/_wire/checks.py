@@ -7,6 +7,7 @@ from pydantic import Field, StringConstraints, field_validator, model_validator
 
 from ..models.agent import AGENT_NAME_MIN_LENGTH, AGENT_NAME_PATTERN, Step, normalize_agent_name
 from ..models.base import BaseModel
+from ..models.control_evidence import ControlEvidenceSnapshot, ControlReceipt
 from .recovery_feedback import RecoveryFeedback
 from .rules import RuleMatch
 
@@ -137,6 +138,16 @@ class CheckResponse(BaseModel):
     """
 
     execution_contract: str | None = None
+    control_contract: Literal["rule-controls-v1"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    agent_generation: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    control_resolutions: list[ControlReceipt] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    control_evidence: list[ControlEvidenceSnapshot] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     allowed: bool = Field(
         ..., description="Whether the evaluated Rules permit this checkpoint (native field)"

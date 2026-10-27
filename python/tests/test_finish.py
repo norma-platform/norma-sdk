@@ -287,6 +287,81 @@ async def test_check_finish_posts_exact_turn_and_returns_typed_verdict() -> None
 
 
 @pytest.mark.asyncio
+async def test_opted_in_finish_requires_ack_and_preserves_frozen_control_evidence() -> None:
+    from norma.client import NormaClient
+
+    turn = _recorder().turn("Done")
+    payload = {
+        "execution_contract": "hosted-v1",
+        "control_contract": "rule-controls-v1",
+        "agent_generation": "generation-1",
+        "control_resolutions": None,
+        "control_evidence": [{
+            "schema_version": 1,
+            "completeness": "unavailable",
+            "agent_name": "test-agent",
+            "agent_generation": "generation-1",
+            "rule_id": 7,
+            "rule_version": None,
+            "definition_fingerprint": "a" * 64,
+            "references": [],
+        }],
+        "verdict": "pass", "reason": "Done", "reason_codes": [], "held_by": [],
+        "would_hold_by": [], "continuation": {"count": 0, "max": 2},
+        "allow_finish": True, "outcome": "completed", "provider_input_tokens": None,
+    }
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json=payload,
+            headers={"X-Norma-Control-Contract": "rule-controls-v1"},
+        )
+
+    async with NormaClient(
+        agent_key="key", control_contract="rule-controls-v1", transport=httpx.MockTransport(handler)
+    ) as client:
+        verdict = await check_finish(turn, client=client, agent_name="test-agent")
+
+    assert verdict.verdict == "pass"
+    assert verdict.control_contract == "rule-controls-v1"
+    assert verdict.agent_generation == "generation-1"
+    assert verdict.control_evidence[0].completeness == "unavailable"
+    assert seen[0].headers["X-Norma-Control-Contract"] == "rule-controls-v1"
+
+
+@pytest.mark.asyncio
+async def test_opted_in_finish_with_missing_ack_is_unverified_without_replay() -> None:
+    from norma.client import NormaClient
+
+    turn = _recorder().turn("Done")
+    payload = {
+        "execution_contract": "hosted-v1", "control_contract": "rule-controls-v1",
+        "verdict": "pass", "reason": "Done", "reason_codes": [], "held_by": [],
+        "would_hold_by": [], "continuation": {"count": 0, "max": 2},
+        "allow_finish": True, "outcome": "completed", "provider_input_tokens": None,
+    }
+    calls = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json=payload)
+
+    async with NormaClient(
+        agent_key="key", control_contract="rule-controls-v1", transport=httpx.MockTransport(handler)
+    ) as client:
+        verdict = await check_finish(turn, client=client, agent_name="test-agent")
+
+    assert calls == 1
+    assert (verdict.verdict, verdict.allow_finish, verdict.outcome) == (
+        "unavailable", True, "finished_unverified"
+    )
+
+
+@pytest.mark.asyncio
 async def test_check_finish_preserves_explicit_target_context() -> None:
     from norma.client import NormaClient
 

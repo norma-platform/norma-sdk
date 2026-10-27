@@ -4,6 +4,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
 
 import { NormaClient, connectionFor, defaultClient } from "./client";
+import { CONTROL_CONTRACT_HEADER, requireControlAcknowledgementEnvelope } from "./control-contract";
+import { ControlEvidenceSnapshot$inboundSchema, ControlReceipt$inboundSchema } from "./generated/models/control-evidence";
+import type { ControlEvidenceSnapshot, ControlReceipt } from "./generated/models/control-evidence";
 import type { ActionKind } from "./checkpoint";
 
 export type ActionStatus = "succeeded" | "failed" | "denied" | "unknown";
@@ -35,6 +38,10 @@ export interface TurnRecord {
   continuation: ContinuationState;
 }
 export interface FinishVerdict {
+  control_contract?: "rule-controls-v1";
+  agent_generation?: string | null;
+  control_resolutions?: ControlReceipt[] | null;
+  control_evidence?: ControlEvidenceSnapshot[] | null;
   verdict: "pass" | "hold" | "unsure" | "unavailable";
   reason: string;
   reason_codes: string[];
@@ -185,6 +192,10 @@ const turnSchema = z.strictObject({
 
 const finishVerdictSchema = z.strictObject({
   execution_contract: z.literal("hosted-v1"),
+  control_contract: z.literal("rule-controls-v1").optional(),
+  agent_generation: z.string().max(128).nullable().optional(),
+  control_resolutions: z.array(ControlReceipt$inboundSchema).nullable().optional(),
+  control_evidence: z.array(ControlEvidenceSnapshot$inboundSchema).nullable().optional(),
   verdict: z.enum(["pass", "hold", "unsure", "unavailable"]),
   reason: z.string().max(600),
   reason_codes: z.array(z.string().max(100)).max(100),
@@ -230,6 +241,9 @@ async function boundedResponse(response: Response): Promise<unknown> {
       if (size > 256 * 1024) throw new Error("finish response too large");
       chunks.push(value);
     }
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
   } finally {
     reader.releaseLock();
   }
@@ -297,12 +311,15 @@ export async function checkFinish(
       if (!key) return unavailable(continuation);
       const response = await fetch(new Request(new URL("api/v1/checks", `${config.runtimeUrl.replace(/\/$/, "")}/`), {
         method: "POST", redirect: "error",
-        headers: { "Content-Type": "application/json", "X-API-Key": key },
+        headers: { "Content-Type": "application/json", "X-API-Key": key,
+          ...(config.controlContract === "rule-controls-v1" ? { [CONTROL_CONTRACT_HEADER]: "rule-controls-v1" } : {}) },
         body: payload,
         signal: controller.signal,
       }));
       if (!response.ok) return unavailable(continuation);
-      const parsed = finishVerdictSchema.safeParse(await boundedResponse(response));
+      const responseBody = await boundedResponse(response);
+      if (config.controlContract === "rule-controls-v1") requireControlAcknowledgementEnvelope(response, responseBody);
+      const parsed = finishVerdictSchema.safeParse(responseBody);
       if (!parsed.success || parsed.data.continuation.count !== continuation.count || parsed.data.continuation.max > continuation.max) return unavailable(continuation);
       return { ...parsed.data, reason: bounded(parsed.data.reason, 600) ?? "" };
     };

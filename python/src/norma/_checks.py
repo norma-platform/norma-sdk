@@ -283,6 +283,7 @@ async def evaluate_rules(
     async with NormaClient(
         runtime_url=state.server_url,
         agent_key=state.api_key,
+        control_contract=state.control_contract,
     ) as client:
         result = await request_remote_check(
             client=client,

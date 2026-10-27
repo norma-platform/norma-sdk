@@ -5,6 +5,7 @@ import { buildCheckEvents, CheckReportQueue } from "./internal/check-events";
 import { HostedOperationsApi, type OperationsApi } from "./internal/operations";
 import type { ChecksApi, AgentsApi, RuleBindingsApi, EvaluatorsApi, ObservabilityApi } from "./public-api";
 import {createChecks, decisionFromWire, publicApis} from "./internal/public-adapters";
+import { CONTROL_CONTRACT_HEADER, isControlContractRoute, requireControlAcknowledgement, type ControlContract } from "./control-contract";
 export type { AgentsApi, RuleBindingsApi, EvaluatorsApi, ObservabilityApi } from "./public-api";
 import type { DeliveryReceipt } from "./check-events";
 import type { Logger } from "./generated/lib/logger";
@@ -22,6 +23,8 @@ export interface NormaInitOptions {
   timeoutMs?: number;
   /** Report observed rule results to this Norma server. Reporting never changes decisions. */
   observabilityEnabled?: boolean;
+  /** Require versioned control receipts/evidence from reviewed runtime routes. */
+  controlContract?: ControlContract;
   userAgent?: string;
   debugLogger?: Logger;
   httpClient?: HTTPClient;
@@ -62,7 +65,7 @@ export class NormaClient {
     this.options = null; this.sdk = null; this.operationsApi = null;
     connections.delete(this); runtimes.delete(this);
     const accepted = new Set(["agentName", "targetType", "targetId", "runtimeUrl", "agentKey",
-      "timeoutMs", "observabilityEnabled", "userAgent", "debugLogger", "httpClient"]);
+      "timeoutMs", "observabilityEnabled", "controlContract", "userAgent", "debugLogger", "httpClient"]);
     if (!input || Object.keys(input).some(key => !accepted.has(key))) {
       throw new TypeError("Unsupported Norma connection option. Use agentName, runtimeUrl and agentKey; account identity is server-owned.");
     }
@@ -76,6 +79,9 @@ export class NormaClient {
       return key;
     } : credential;
     if (!agentName?.trim()) throw new TypeError("Provide agentName for your registered Norma agent.");
+    if (input.controlContract !== undefined && input.controlContract !== "rule-controls-v1") {
+      throw new TypeError("controlContract must be 'rule-controls-v1'.");
+    }
     if (!runtimeUrl?.trim()) throw new TypeError("Set NORMA_RUNTIME_URL or provide runtimeUrl from your Norma connection settings.");
     if (!agentKey || (typeof agentKey === "string" && !agentKey.trim())) throw new TypeError("Set NORMA_AGENT_KEY or provide agentKey.");
     let endpoint: URL;
@@ -102,7 +108,21 @@ export class NormaClient {
           throw new TypeError(`Identity header ${name} cannot override Agent Key authorization.`);
         }
       }
+      const path = destination.pathname.slice(endpoint.pathname.replace(/\/$/, "").length) || "/";
+      const shouldNegotiate = options.controlContract === "rule-controls-v1" && isControlContractRoute(request.method, path);
+      const suppliedContract = request.headers.get(CONTROL_CONTRACT_HEADER);
+      if (suppliedContract !== null && (!shouldNegotiate || suppliedContract !== "rule-controls-v1")) {
+        throw new TypeError("Control contract headers are managed by NormaClient.controlContract.");
+      }
+      if (shouldNegotiate) request.headers.set(CONTROL_CONTRACT_HEADER, "rule-controls-v1");
       return new Request(request, { redirect: "error" });
+    });
+    httpClient.addHook("response", async (response, request) => {
+      const requestUrl = new URL(request.url);
+      const path = requestUrl.pathname.slice(endpoint.pathname.replace(/\/$/, "").length) || "/";
+      if (options.controlContract === "rule-controls-v1" && response.ok && isControlContractRoute(request.method, path)) {
+        await requireControlAcknowledgement(response);
+      }
     });
     this.sdk = new NormaSDK({
       serverURL: options.runtimeUrl,

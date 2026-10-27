@@ -288,6 +288,7 @@ async def check_finish(
             async with NormaClient(
                 runtime_url=_session_state.server_url,
                 agent_key=_session_state.api_key,
+                control_contract=_session_state.control_contract,
             ) as session_client:
                 return await send(session_client)
     except (httpx.HTTPError, TimeoutError, ValueError, RuntimeError):

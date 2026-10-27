@@ -1,6 +1,5 @@
 // Modified for Norma.
 /** Private protocol adapters. Never export these implementation functions from the package. */
-import {jsonObjectSchema} from "../json-contract";
 import type { NormaConfig } from "../client";
 import type { NormaSDK } from "../generated/sdk/sdk";
 import type { RuleMatch } from "../generated/models/rule-match";
@@ -33,7 +32,10 @@ export function decisionFromWire(response: CheckResponse): Decision {
   ];
   const blocking = checks.some(check => check.mode !== "observe" && (check.status === "error" || check.result.error != null ||
     (["matched", "unresolved"].includes(check.status) && ["deny", "steer"].includes(check.effectiveAction ?? check.action))));
-  return { allowed: response.allowed && !blocking, reason: response.reason ?? null, checks, recoveryFeedback: response.recoveryFeedback };
+  return { allowed: response.allowed && !blocking, reason: response.reason ?? null, checks,
+    recoveryFeedback: response.recoveryFeedback, controlContract: response.controlContract,
+    agentGeneration: response.agentGeneration, controlResolutions: response.controlResolutions,
+    controlEvidence: response.controlEvidence };
 }
 export function createChecks(check: NormaSDK["checks"], config: NormaConfig): ChecksApi {
   return { async check(request, options) {
@@ -51,24 +53,21 @@ export function ruleDefinitionFromWire(definition: RuleDefinitionOutput): RuleDe
     evaluator: node.evaluator == null ? node.evaluator : {name: node.evaluator.name,
       config: node.evaluator.config},
   });
-  return {...(definition.parameters == null ? {} : {parameters: jsonObjectSchema.parse(definition.parameters)}),
-    mode: definition.mode, execution: "server", enabled: definition.enabled, action: {decision: decision as RuleDecision,
+  return {mode: definition.mode, execution: "server", enabled: definition.enabled, action: {decision: decision as RuleDecision,
     steeringContext: definition.action.steeringContext}, condition: condition(definition.condition),
     description: definition.description, scope: definition.scope == null ? undefined : {
       stepTypes: definition.scope.stepTypes, stepNames: definition.scope.stepNames,
       stepNameRegex: definition.scope.stepNameRegex,
       stages: definition.scope.stages?.map(stage => stage as "pre" | "post") ?? definition.scope.stages as null | undefined,
-    }, tags: definition.tags,
-    template: definition.template == null ? definition.template : jsonObjectSchema.parse(definition.template), templateValues: definition.templateValues};
+    }, tags: definition.tags};
 }
 
 export function publicApis(sdk: NormaSDK): {agents: AgentsApi; ruleBindings: RuleBindingsApi; evaluators: EvaluatorsApi; observability: ObservabilityApi} {
   const rule = (value: {id: number; name: string; rule: unknown}): Rule => {
     const definition = value.rule as RuleDefinitionOutput;
-    const unrendered = !("execution" in definition);
-    const publicDefinition = unrendered ? null : ruleDefinitionFromWire(definition);
+    const publicDefinition = !("execution" in definition) ? null : ruleDefinitionFromWire(definition);
     return { id: value.id, name: value.name, definition: publicDefinition,
-      status: unrendered ? "unrendered" : publicDefinition !== null ? "hosted" : "unsupported" };
+      status: publicDefinition !== null ? "hosted" : "unsupported" };
   };
   const binding = (value: Awaited<ReturnType<NormaSDK["ruleBindings"]["get"]>>): RuleBinding => {
     const { ruleId, namespaceKey: _namespace, ...rest } = value; void _namespace;
@@ -83,7 +82,8 @@ export function publicApis(sdk: NormaSDK): {agents: AgentsApi; ruleBindings: Rul
           ...overwriteChanges, evaluatorRemovals: overwriteChanges.evaluatorRemovals?.map(({ruleIds, ruleNames, referencedByActiveRules, ...item}) => ({
             ...item, ruleIds: ruleIds, ruleNames: ruleNames, referencedByActiveRules: referencedByActiveRules })) } }; },
       get: (request, options) => sdk.agents.get(request, options), update: (request, options) => sdk.agents.update(request, options),
-      async listRules(request, options) { const result = await sdk.agents.listRules(request, options); return {rules: result.rules.map(rule)}; },
+      async listRules(request, options) { const result = await sdk.agents.listRules(request, options);
+        return {...result, rules: result.rules.map(rule)}; },
       listEvaluators: (request, options) => sdk.agents.listEvaluators(request, options),
       getEvaluator: (request, options) => sdk.agents.getEvaluator(request, options),
     },

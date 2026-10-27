@@ -12,7 +12,6 @@ Pass the registered agent name explicitly to the client operation. An agent name
 
 - [Python client](python/README.md)
 - [TypeScript client](typescript/README.md)
-- [Migrating to the hosted clients](docs/migration.md)
 - [Workspace isolation and hostnames](docs/tenancy.md)
 
 These packages call the hosted service. They contain no local evaluation engine, service launcher, database migration commands, deployment tools, or account administration CLI. Native host-hook installation is a separate integration, not part of these SDKs.

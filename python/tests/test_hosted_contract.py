@@ -79,6 +79,69 @@ async def test_wire_identity_credentials_and_gateway_prefix() -> None:
     assert "tenant_id" not in payload
 
 
+@pytest.mark.parametrize(
+    "headers,payload,accepted",
+    [
+        (
+            {"X-Norma-Control-Contract": "rule-controls-v1"},
+            {**SAFE, "control_contract": "rule-controls-v1"},
+            True,
+        ),
+        ({}, {**SAFE, "control_contract": "rule-controls-v1"}, False),
+        ({"X-Norma-Control-Contract": "rule-controls-v1"}, SAFE, False),
+        (
+            {"X-Norma-Control-Contract": "rule-controls-v1"},
+            {**SAFE, "control_contract": "other"},
+            False,
+        ),
+        (
+            {"X-Norma-Control-Contract": "other"},
+            {**SAFE, "control_contract": "rule-controls-v1"},
+            False,
+        ),
+    ],
+)
+async def test_control_contract_opt_in_requires_header_and_envelope(
+    headers: dict[str, str], payload: dict[str, object], accepted: bool
+) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=payload, headers=headers)
+
+    async with NormaClient(
+        URL,
+        control_contract="rule-controls-v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        if accepted:
+            result = await checks.check(
+                client, NAME, Step(type="tool", name="read", input={}), "pre"
+            )
+            assert result.allowed
+        else:
+            with pytest.raises(RuntimeError, match="control contract"):
+                await checks.check(client, NAME, Step(type="tool", name="read", input={}), "pre")
+
+    assert len(seen) == 1
+    assert seen[0].headers["X-Norma-Control-Contract"] == "rule-controls-v1"
+
+
+async def test_control_contract_is_opt_in_and_legacy_check_sends_no_header() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=SAFE)
+
+    async with NormaClient(URL, transport=httpx.MockTransport(handler)) as client:
+        result = await checks.check(client, NAME, Step(type="tool", name="read", input={}), "pre")
+    assert result.allowed
+    assert len(seen) == 1
+    assert "X-Norma-Control-Contract" not in seen[0].headers
+
+
 async def test_redirect_and_cross_origin_never_receive_key() -> None:
     seen: list[httpx.Request] = []
 

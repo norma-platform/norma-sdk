@@ -12,6 +12,7 @@ import { Result as SafeParseResult } from "../types/fp.js";
 import * as types from "../types/primitives.js";
 import { RuleMatch, RuleMatch$inboundSchema } from "./rule-match.js";
 import { SDKValidationError } from "./errors/sdk-validation-error.js";
+import { ControlEvidenceSnapshot$inboundSchema, ControlReceipt$inboundSchema, type ControlEvidenceSnapshot, type ControlReceipt } from "./control-evidence.js";
 
 /**
  * Response model from check analysis (server-side).
@@ -31,6 +32,10 @@ import { SDKValidationError } from "./errors/sdk-validation-error.js";
  */
 export type CheckResponse = {
   executionContract?: string;
+  controlContract?: "rule-controls-v1" | null | undefined;
+  agentGeneration?: string | null | undefined;
+  controlResolutions?: Array<ControlReceipt> | null | undefined;
+  controlEvidence?: Array<ControlEvidenceSnapshot> | null | undefined;
   /**
    * Evaluator aggregate (0.0 to 1.0), not calibrated safety confidence
    */
@@ -66,6 +71,10 @@ export const CheckResponse$inboundSchema: z.ZodMiniType<
 > = z.pipe(
   z.object({
     execution_contract: z.optional(z.string()),
+    control_contract: z.optional(z.nullable(z.literal("rule-controls-v1"))),
+    agent_generation: z.optional(z.nullable(z.string())),
+    control_resolutions: z.optional(z.nullable(z.array(ControlReceipt$inboundSchema))),
+    control_evidence: z.optional(z.nullable(z.array(ControlEvidenceSnapshot$inboundSchema))),
     confidence: types.number(),
     unresolved: z.optional(z.nullable(z.array(RuleMatch$inboundSchema))),
     recovery_feedback: z.optional(z.nullable(z.array(RecoveryFeedbackSchema))),
@@ -76,12 +85,19 @@ export const CheckResponse$inboundSchema: z.ZodMiniType<
     reason: z.optional(z.nullable(types.string())),
   }),
   z.transform((v) => {
-    return remap$(v, {
+    const result = remap$(v, {
       "execution_contract": "executionContract",
+      "control_contract": "controlContract",
+      "agent_generation": "agentGeneration",
+      "control_resolutions": "controlResolutions",
+      "control_evidence": "controlEvidence",
       "allowed": "allowed",
       "recovery_feedback": "recoveryFeedback",
       "non_matches": "nonMatches",
     });
+    if (result.controlResolutions) Object.freeze(result.controlResolutions);
+    if (result.controlEvidence) Object.freeze(result.controlEvidence);
+    return result;
   }),
 );
 

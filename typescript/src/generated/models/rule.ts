@@ -8,32 +8,22 @@ import * as z from "zod/v4-mini";
 import { safeParse } from "../lib/schemas.js";
 import { Result as SafeParseResult } from "../types/fp.js";
 import * as types from "../types/primitives.js";
-import { smartUnion } from "../types/smart-union.js";
 import {
   RuleDefinitionOutput,
   RuleDefinitionOutput$inboundSchema,
 } from "./rule-definition-output.js";
 import { SDKValidationError } from "./errors/sdk-validation-error.js";
-import {
-  UnrenderedTemplateRule,
-  UnrenderedTemplateRule$inboundSchema,
-} from "./unrendered-template-rule.js";
-
-export type RuleRule =
-  | RuleDefinitionOutput
-  | UnrenderedTemplateRule;
+export type RuleRule = RuleDefinitionOutput;
 
 /**
  * A rule with identity and configuration.
  *
  * @remarks
  *
- * For rendered rules (raw or template-backed), ``rule`` is a
- * ``RuleDefinition``.  For unrendered template rules, ``rule``
- * is an ``UnrenderedTemplateRule``.
+ * ``rule`` is the hosted Rule definition.
  */
 export type Rule = {
-  rule: RuleDefinitionOutput | UnrenderedTemplateRule;
+  rule: RuleDefinitionOutput;
   id: number;
   name: string;
 };
@@ -42,10 +32,7 @@ export type Rule = {
 export const RuleRule$inboundSchema: z.ZodMiniType<
   RuleRule,
   unknown
-> = smartUnion([
-  RuleDefinitionOutput$inboundSchema,
-  UnrenderedTemplateRule$inboundSchema,
-]);
+> = RuleDefinitionOutput$inboundSchema;
 
 export function ruleRuleFromJSON(
   jsonString: string,
@@ -59,10 +46,7 @@ export function ruleRuleFromJSON(
 
 /** @internal */
 export const Rule$inboundSchema: z.ZodMiniType<Rule, unknown> = z.object({
-  rule: smartUnion([
-    RuleDefinitionOutput$inboundSchema,
-    UnrenderedTemplateRule$inboundSchema,
-  ]),
+  rule: RuleDefinitionOutput$inboundSchema,
   id: types.number(),
   name: types.string(),
 });

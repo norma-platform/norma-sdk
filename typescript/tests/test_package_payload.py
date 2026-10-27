@@ -62,6 +62,14 @@ class PackagePayloadTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "wire type leaked"):
                     self.inspect()
 
+    def test_rejects_retired_template_surface_in_installed_payload(self) -> None:
+        for token in ("TemplateDefinition", "UnrenderedTemplateRule", "ParameterBinding",
+                      "policy-parameters-v1", "TEMPLATE_RENDER_ERROR"):
+            with self.subTest(token=token):
+                self.files["package/dist/index.d.ts"] = f"type Retired = {token};".encode()
+                with self.assertRaisesRegex(RuntimeError, "Retired generic template surface"):
+                    self.inspect()
+
     def test_rejects_extra_app_or_fixture_content(self) -> None:
         for name in ("package/server/private.py", "package/tests/customer.json", "package/.env"):
             with self.subTest(name=name):

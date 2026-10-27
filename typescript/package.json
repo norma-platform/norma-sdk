@@ -1,6 +1,6 @@
 {
   "name": "norma-sdk",
-  "version": "4.0.0-dev.0",
+  "version": "4.0.0-dev.1",
   "private": false,
   "description": "TypeScript SDK for Norma",
   "license": "Apache-2.0",

@@ -105,6 +105,14 @@ def inspect_package(path: Path) -> dict[str, object]:
             if notice not in notices:
                 raise RuntimeError("Bundled third-party source notice is missing")
         for name, content in files.items():
+            retired_surface = re.compile(
+                rb"\b(?:TemplateDefinition(?:Input|Output)?|TemplateParameterDefinition|"
+                rb"(?:Boolean|Enum|Regex|String|StringList)TemplateParameter|TemplateValue|"
+                rb"UnrenderedTemplateRule|RULE_TEMPLATE_CONFLICT|TEMPLATE_PARAMETER_INVALID|"
+                rb"TEMPLATE_RENDER_ERROR|ParameterBinding|policy-parameters-v1)\b"
+            )
+            if retired_surface.search(content):
+                raise RuntimeError("Retired generic template surface leaked into the packed SDK")
             if name.endswith((".d.ts", ".d.cts")) and re.search(
                 rb"\b(?:NormaSDKCore|RuleDefinitionOutput|namespaceKey|serverURL|apiKeyHeader|SemanticAuthoringVocabulary)\b", content
             ):
@@ -207,6 +215,10 @@ def main() -> None:
         raise RuntimeError("Consumer did not install the real Norma package")
     shutil.copyfile(SDK / "tests/fixtures/operation-receipt.json", consumer / "receipt.json")
     shutil.copyfile(SDK / "tests/fixtures/packed-consumer/consumer.mjs", consumer / "consumer.mjs")
+    shutil.copyfile(
+        SDK / "tests/fixtures/packed-consumer/control-consumer.mjs",
+        consumer / "control-consumer.mjs",
+    )
 
     shutil.copyfile(SDK / "tests/fixtures/packed-consumer/consumer.cjs", consumer / "consumer.cjs")
 
@@ -216,6 +228,7 @@ def main() -> None:
     shutil.copyfile(SDK / "tests/fixtures/packed-consumer/identity.mjs", consumer / "identity.mjs")
 
     run([node, "consumer.mjs"], consumer, stage="esm-consumer")
+    run([node, "control-consumer.mjs"], consumer, stage="controls-consumer")
     run([node, "consumer.cjs"], consumer, stage="commonjs-consumer")
     run([node, "identity.mjs"], consumer, stage="agent-identity-consumer")
     # Install the compiler independently, too: no ancestor node_modules or workspace links.
@@ -271,6 +284,9 @@ def main() -> None:
             "strict NodeNext ESM and CommonJS declarations",
             "semantic authoring, operations and guarded call contract",
             "independent per-agent credentials and 403 fail-closed behavior",
+            "installed controls helper plus nonempty Agent receipt readback",
+            "opt-in check, operation and finish receipt preservation with dual acknowledgement",
+            "one-call rejection for missing contract acknowledgement",
         ],
         "transport": "synthetic in-memory HTTP; no backend or inference service",
         "node_version": run([node, "--version"], stage="node-version").strip(),

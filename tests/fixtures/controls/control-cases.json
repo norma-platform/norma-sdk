@@ -1,0 +1,896 @@
+{
+  "contract": "rule-controls-v1",
+  "capabilities": {
+    "contract": "rule-controls-v1",
+    "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "manifests": [
+      {
+        "evaluator": "json",
+        "evaluator_version": "3.2.1",
+        "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "slots": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path_template": "/config/field_constraints/*/min",
+            "control_types": [
+              "number"
+            ],
+            "predicates": [],
+            "applicability": [],
+            "affects": "decision",
+            "expected_value_schema": {
+              "types": [
+                "number"
+              ],
+              "minimum": 0,
+              "maximum": 100,
+              "integer": true
+            },
+            "requires_server_validation": true
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "strict raw declaration and trusted reference",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"action\":{\"decision\":\"deny\"},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100,\"integer\":true}},\"execution\":\"server\"}",
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "requires_server_validation": true
+    },
+    {
+      "name": "missing required default",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":1}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_default_required"
+    },
+    {
+      "name": "known evaluator protected destination",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"other\":{\"min\":{\"$param\":\"limit\"}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_reference_not_allowed"
+    },
+    {
+      "name": "unregistered evaluator requires server validation",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"custom\",\"config\":{\"limit\":{\"$param\":\"limit\"}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_capability_unavailable"
+    },
+    {
+      "name": "unknown structural applicability requires server validation",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [
+                  {
+                    "path_template": "/config/field_constraints",
+                    "operator": "future_operator"
+                  }
+                ],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ]
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_capability_unavailable"
+    },
+    {
+      "name": "duplicate object keys are rejected during raw admission",
+      "source": "{\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":1,\"minimum\":0,\"maximum\":2}},\"controls\":{}}",
+      "status": "invalid",
+      "source_validation": "invalid",
+      "diagnostic_code": "control_source_duplicate_key"
+    },
+    {
+      "name": "parsed mappings disclose unavailable source admission",
+      "source_as_mapping": true,
+      "source": {
+        "condition": {
+          "selector": {
+            "path": "output"
+          },
+          "evaluator": {
+            "name": "json",
+            "config": {
+              "field_constraints": {
+                "age": {
+                  "min": {
+                    "$param": "limit"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "controls": {
+          "limit": {
+            "type": "number",
+            "label": "Limit",
+            "default": 18,
+            "minimum": 0,
+            "maximum": 100,
+            "integer": true
+          }
+        },
+        "action": {
+          "decision": "deny"
+        },
+        "execution": "server"
+      },
+      "status": "requires_server_validation",
+      "source_validation": "unavailable",
+      "diagnostic_code": "control_source_admission_unavailable"
+    },
+    {
+      "name": "controlled source requires server execution",
+      "source": "{\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"sdk\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_execution_unsupported"
+    },
+    {
+      "name": "controls null is invalid",
+      "source": "{\"controls\":null,\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_declaration_invalid"
+    },
+    {
+      "name": "unrelated large literal does not consume effective values budget",
+      "source": "{\"description\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+      "status": "valid",
+      "source_validation": "admitted"
+    },
+    {
+      "name": "overflowing JSON number is rejected",
+      "source": "{\"metadata\":{\"value\":1e999}}",
+      "status": "invalid",
+      "source_validation": "invalid",
+      "diagnostic_code": "control_source_invalid_json"
+    },
+    {
+      "name": "escaped lone surrogate is rejected",
+      "source": "{\"metadata\":\"\\ud800\"}",
+      "status": "invalid",
+      "source_validation": "invalid",
+      "diagnostic_code": "control_source_invalid_json"
+    },
+    {
+      "name": "unused declaration is rejected",
+      "source": "{\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_unused"
+    },
+    {
+      "name": "retired shared parameter binding is rejected",
+      "source": "{\"parameters\":{\"values\":{\"limit\":4}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_declaration_invalid"
+    },
+    {
+      "name": "string default must satisfy declaration length bounds",
+      "source": "{\"controls\":{\"title\":{\"type\":\"string\",\"label\":\"Title\",\"default\":\"x\",\"min_length\":2}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_value_out_of_bounds"
+    },
+    {
+      "name": "string list preserves repeated ordered default values",
+      "source_as_mapping": true,
+      "source": {
+        "execution": "server",
+        "condition": {
+          "selector": {
+            "path": "output"
+          },
+          "evaluator": {
+            "name": "json",
+            "config": {
+              "required_fields": {
+                "$param": "labels"
+              }
+            }
+          }
+        },
+        "controls": {
+          "labels": {
+            "type": "string_list",
+            "label": "Labels",
+            "default": [
+              "same",
+              "same"
+            ]
+          }
+        }
+      },
+      "status": "requires_server_validation",
+      "source_validation": "unavailable",
+      "diagnostic_code": "control_source_admission_unavailable",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/required_fields",
+                "control_types": [
+                  "string_list"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "string_list"
+                  ],
+                  "item_max_length": 256
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "all five strict control types accept false zero empty and empty list defaults",
+      "source": "{\"execution\":\"server\",\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}},\"flags\":{\"enabled\":{\"$param\":\"enabled\"}},\"title\":{\"$param\":\"title\"},\"mode\":{\"$param\":\"mode\"},\"tags\":{\"$param\":\"tags\"}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":0,\"minimum\":0,\"maximum\":10,\"integer\":true},\"enabled\":{\"type\":\"boolean\",\"label\":\"Enabled\",\"default\":false},\"title\":{\"type\":\"string\",\"label\":\"Title\",\"default\":\"\"},\"mode\":{\"type\":\"enum\",\"label\":\"Mode\",\"default\":\"safe\",\"allowed_values\":[\"safe\",\"fast\"]},\"tags\":{\"type\":\"string_list\",\"label\":\"Tags\",\"default\":[]}}}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/age/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": 0,
+                  "maximum": 10,
+                  "integer": true
+                },
+                "requires_server_validation": true
+              },
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/flags/enabled",
+                "control_types": [
+                  "boolean"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "boolean"
+                  ]
+                },
+                "requires_server_validation": true
+              },
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/title",
+                "control_types": [
+                  "string"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "string"
+                  ],
+                  "max_length": 5
+                },
+                "requires_server_validation": true
+              },
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/mode",
+                "control_types": [
+                  "enum"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "enum"
+                  ],
+                  "allowed_values": [
+                    "safe",
+                    "fast"
+                  ]
+                },
+                "requires_server_validation": true
+              },
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/tags",
+                "control_types": [
+                  "string_list"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "string_list"
+                  ],
+                  "max_items": 4,
+                  "item_max_length": 20
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "requires_server_validation": true
+    },
+    {
+      "name": "escaped-equivalent duplicate keys are rejected",
+      "source": "{\"controls\":{},\"\\u0063ontrols\":{}}",
+      "status": "invalid",
+      "source_validation": "invalid",
+      "diagnostic_code": "control_source_duplicate_key"
+    },
+    {
+      "name": "non-JSON NBSP whitespace is rejected",
+      "source": "{\"execution\":\"server\"} ",
+      "status": "invalid",
+      "source_validation": "invalid",
+      "diagnostic_code": "control_source_invalid_json"
+    },
+    {
+      "name": "undeclared reference stays invalid without capabilities",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"missing\"}}}}}},\"execution\":\"server\"}",
+      "without_capabilities": true,
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_reference_unknown"
+    },
+    {
+      "name": "protected reference stays invalid without capabilities",
+      "source": "{\"action\":{\"decision\":{\"$param\":\"limit\"}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "without_capabilities": true,
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_reference_not_allowed"
+    },
+    {
+      "name": "unhashable declaration type is a bounded diagnostic",
+      "source": "{\"controls\":{\"limit\":{\"type\":[],\"label\":\"Limit\",\"default\":18}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_declaration_invalid"
+    },
+    {
+      "name": "malformed trusted destination schema requires server validation",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": "bad",
+                  "maximum": 100,
+                  "integer": true
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_capability_unavailable"
+    },
+    {
+      "name": "escaped wildcard capture resolves trusted sibling predicate",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"a/b~c\":{\"min\":{\"$param\":\"limit\"},\"max\":20}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [
+                  [
+                    "/config/field_constraints/*/max",
+                    20
+                  ]
+                ],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": 0,
+                  "maximum": 100,
+                  "integer": true
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted"
+    },
+    {
+      "name": "not-false applicability accepts explicit null",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"required\":null,\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [
+                  {
+                    "path_template": "/config/required",
+                    "operator": "not_false"
+                  }
+                ],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": 0,
+                  "maximum": 100,
+                  "integer": true
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted"
+    },
+    {
+      "name": "parsed negative zero remains mathematical zero with unavailable admission",
+      "source_as_mapping": true,
+      "source": {
+        "controls": {
+          "limit": {
+            "type": "number",
+            "label": "Limit",
+            "default": -0.0,
+            "minimum": -1,
+            "maximum": 1
+          }
+        },
+        "condition": {
+          "selector": {
+            "path": "output"
+          },
+          "evaluator": {
+            "name": "json",
+            "config": {
+              "field_constraints": {
+                "age": {
+                  "min": {
+                    "$param": "limit"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "execution": "server"
+      },
+      "status": "requires_server_validation",
+      "source_validation": "unavailable",
+      "diagnostic_code": "control_source_admission_unavailable"
+    },
+    {
+      "name": "retired generic Rule templates are rejected",
+      "source": "{\"template\":{\"definition_template\":{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"description\":{\"$param\":\"legacy_label\"}},\"parameters\":{\"legacy_label\":\"old\"}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_declaration_invalid"
+    },
+    {
+      "name": "malformed declaration bound is a diagnostic instead of an exception",
+      "source": "{\"controls\":{\"label\":{\"type\":\"string\",\"label\":\"Label\",\"default\":\"x\",\"min_length\":\"bad\"}},\"execution\":\"server\"}",
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_declaration_invalid"
+    },
+    {
+      "name": "unhashable predicate operator list is unavailable",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [
+                  {
+                    "path_template": "/config/enabled",
+                    "operator": []
+                  }
+                ],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": 0,
+                  "maximum": 100,
+                  "integer": true
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_capability_unavailable"
+    },
+    {
+      "name": "unhashable predicate operator object is unavailable",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [
+                  {
+                    "path_template": "/config/enabled",
+                    "operator": {}
+                  }
+                ],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": 0,
+                  "maximum": 100,
+                  "integer": true
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_capability_unavailable"
+    },
+    {
+      "name": "unhashable capability affects field is unavailable",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": [],
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": 0,
+                  "maximum": 100,
+                  "integer": true
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_capability_unavailable"
+    },
+    {
+      "name": "real wire null optionals still admit a known slot",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"limit\"}}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": null,
+                  "maximum": null,
+                  "integer": null,
+                  "min_length": null,
+                  "max_length": null,
+                  "min_items": null,
+                  "max_items": null,
+                  "item_max_length": null,
+                  "allowed_values": null
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted"
+    },
+    {
+      "name": "real wire null optionals do not broaden protected slots",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"other\":{\"min\":{\"$param\":\"limit\"}}}}},\"controls\":{\"limit\":{\"type\":\"number\",\"label\":\"Limit\",\"default\":18,\"minimum\":0,\"maximum\":100}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "number"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "number"
+                  ],
+                  "minimum": null,
+                  "maximum": null,
+                  "integer": null,
+                  "min_length": null,
+                  "max_length": null,
+                  "min_items": null,
+                  "max_items": null,
+                  "item_max_length": null,
+                  "allowed_values": null
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "invalid",
+      "source_validation": "admitted",
+      "diagnostic_code": "control_reference_not_allowed"
+    },
+    {
+      "name": "optional authored null constraints match server declaration semantics",
+      "source": "{\"condition\":{\"selector\":{\"path\":\"output\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"age\":{\"min\":{\"$param\":\"text\"},\"max\":{\"$param\":\"items\"}}}}}},\"controls\":{\"text\":{\"type\":\"string\",\"label\":\"Text\",\"default\":\"x\",\"min_length\":null,\"max_length\":null},\"items\":{\"type\":\"string_list\",\"label\":\"Items\",\"default\":[],\"allowed_values\":null,\"min_items\":null,\"max_items\":null}},\"execution\":\"server\"}",
+      "capabilities": {
+        "contract": "rule-controls-v1",
+        "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifests": [
+          {
+            "evaluator": "json",
+            "evaluator_version": "3.2.1",
+            "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "slots": [
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/min",
+                "control_types": [
+                  "string"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "string"
+                  ]
+                },
+                "requires_server_validation": true
+              },
+              {
+                "evaluator": "json",
+                "evaluator_version": "3.2.1",
+                "schema_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "path_template": "/config/field_constraints/*/max",
+                "control_types": [
+                  "string_list"
+                ],
+                "predicates": [],
+                "applicability": [],
+                "affects": "decision",
+                "expected_value_schema": {
+                  "types": [
+                    "string_list"
+                  ]
+                },
+                "requires_server_validation": true
+              }
+            ]
+          }
+        ]
+      },
+      "status": "requires_server_validation",
+      "source_validation": "admitted"
+    }
+  ]
+}

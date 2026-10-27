@@ -22,13 +22,43 @@ const diagnosticCodes = new Set([
   "RULE_VERSION_NOT_FOUND", "RULE_BINDING_NOT_FOUND", "EVALUATOR_NOT_FOUND",
   "AGENT_NAME_CONFLICT", "POLICY_NAME_CONFLICT", "RULE_NAME_CONFLICT",
   "RULE_BINDING_CONFLICT", "EVALUATOR_NAME_CONFLICT", "RULE_IN_USE",
-  "RULE_TEMPLATE_CONFLICT", "EVALUATOR_IN_USE", "SCHEMA_INCOMPATIBLE",
+  "EVALUATOR_IN_USE", "SCHEMA_INCOMPATIBLE",
   "VALIDATION_ERROR", "INVALID_CONFIG", "INVALID_SCHEMA", "CORRUPTED_DATA",
   "POLICY_RULE_INCOMPATIBLE", "RULE_BINDING_INCOMPATIBLE",
-  "TEMPLATE_PARAMETER_INVALID", "TEMPLATE_RENDER_ERROR",
+  "CONTROL_CONTRACT_REQUIRED", "CONTROL_CONTRACT_DISABLED", "CONTROL_REVISION_CONFLICT",
 ]);
 const authenticationCodes = new Set(["AUTH_MISSING_KEY", "AUTH_INVALID_KEY", "AUTH_UPSTREAM_REJECTED"]);
-const serviceCodes = new Set(["DATABASE_ERROR", "INTERNAL_ERROR", "CHECK_FAILED", "AUTH_MISCONFIGURED", "AUTH_UPSTREAM_REJECTED"]);
+const serviceCodes = new Set(["DATABASE_ERROR", "INTERNAL_ERROR", "CHECK_FAILED", "AUTH_MISCONFIGURED", "AUTH_UPSTREAM_REJECTED", "CONTROL_STATE_UNAVAILABLE"]);
+
+export type ControlDiagnosticCode = "control_default_required" | "control_declaration_invalid" |
+  "control_reference_invalid" | "control_reference_not_allowed" | "control_reference_unknown" |
+  "control_unused" | "control_symbol_conflict" | "control_type_mismatch" | "control_value_out_of_bounds" |
+  "control_destination_invalid" | "control_execution_unsupported" | "control_capability_unavailable" |
+  "control_override_incompatible" | "control_evidence_size_exceeded";
+export interface ControlRequestDiagnostic { code: ControlDiagnosticCode; sourcePointer: string }
+const controlDiagnosticCodes = new Set<ControlDiagnosticCode>([
+  "control_default_required", "control_declaration_invalid", "control_reference_invalid",
+  "control_reference_not_allowed", "control_reference_unknown", "control_unused", "control_symbol_conflict",
+  "control_type_mismatch", "control_value_out_of_bounds", "control_destination_invalid",
+  "control_execution_unsupported", "control_capability_unavailable", "control_override_incompatible",
+  "control_evidence_size_exceeded",
+]);
+const jsonPointer = /^(?:\/(?:[^~/]|~[01])*)*$/;
+
+function controlDiagnostics(source: Record<string, unknown>): ControlRequestDiagnostic[] {
+  if (!Array.isArray(source.errors)) return [];
+  const result: ControlRequestDiagnostic[] = [];
+  for (const value of source.errors.slice(0, 50)) {
+    const item = object(value);
+    const code = item.code;
+    const pointer = item.field;
+    if (typeof code === "string" && controlDiagnosticCodes.has(code as ControlDiagnosticCode)
+      && typeof pointer === "string" && pointer.length <= 1024 && jsonPointer.test(pointer)) {
+      result.push({ code: code as ControlDiagnosticCode, sourcePointer: pointer });
+    }
+  }
+  return result;
+}
 
 function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -90,6 +120,40 @@ function isAgentSetup(source: Record<string, unknown>, url?: string): boolean {
   return path === "/api/v1/agents/register" || path === "/api/runtime/api/v1/agents/register";
 }
 
+function isStepSchemaRegistrationConflict(
+  status: number,
+  source: Record<string, unknown>,
+  url?: string
+): boolean {
+  if (status !== 409 || knownCode(source, status) !== "NORMA_SCHEMA_INCOMPATIBLE") {
+    return false;
+  }
+
+  // The registration route is required so unrelated schema conflicts (for
+  // example review or evaluator updates) keep their generic diagnostics.
+  let path = source.instance;
+  if (url) {
+    try {
+      path = new URL(url, "https://norma.invalid").pathname;
+    } catch {
+      path = undefined;
+    }
+  }
+  if (path !== "/api/v1/agents/register" && path !== "/api/runtime/api/v1/agents/register") {
+    return false;
+  }
+
+  const details = object(source.details);
+  if (details.kind === "Step") return true;
+
+  if (Array.isArray(source.errors) && source.errors.some((entry) => {
+    const error = object(entry);
+    return error.resource === "Step" && error.code === "schema_mismatch";
+  })) return true;
+
+  return typeof source.detail === "string" && source.detail.startsWith("Step schema conflict for ");
+}
+
 function problem(status: number, source: Record<string, unknown>, url?: string): PublicProblem {
   let slug = "request-failed";
   let title = "Request failed";
@@ -127,6 +191,11 @@ function problem(status: number, source: Record<string, unknown>, url?: string):
     title = "Configuration conflict";
     detail = "The request conflicts with the current Norma configuration.";
     hint = "Review the existing configuration before retrying.";
+    if (isStepSchemaRegistrationConflict(status, source, url)) {
+      title = "Step schema conflict";
+      detail = "The registered agent has a step with a different schema.";
+      hint = "Open Console → Agents → agent → Connection → Edit step schemas → Import schemas, inspect and save the changes, then retry with conflictMode: \"strict\".";
+    }
   } else if (status === 400 || status === 422) {
     slug = "validation-error";
     title = "Invalid request";
@@ -154,6 +223,7 @@ export class NormaAPIError extends Error {
   readonly request_id: string | null;
   readonly retryAfter: string | null;
   readonly retry_after: string | null;
+  readonly diagnostics: readonly ControlRequestDiagnostic[];
   #problem: PublicProblem;
 
   constructor(statusCode: number, retryAfterValue: string | null = null, metadata: ErrorMetadata = {}) {
@@ -169,6 +239,7 @@ export class NormaAPIError extends Error {
       ?? requestId(source.request_id)
       ?? requestId(object(source.metadata).request_id);
     this.retryAfter = this.retry_after = retryAfter(retryAfterValue);
+    this.diagnostics = Object.freeze(controlDiagnostics(source).map((item) => Object.freeze(item)));
     this.#problem = safe;
   }
 

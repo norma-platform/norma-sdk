@@ -60,12 +60,11 @@ plugin can bypass later Norma hooks. No adapter can enforce calls outside ADK's
 selected lifecycle hooks.
 
 A denied precheck replaces the model/tool response and prevents that selected
-call. A steered precheck also blocks the call and returns the hosted guidance.
-**Migration:** model steering no longer injects instructions and silently continues
-generation. Choose a revised proposal explicitly and submit it through a new check;
-guidance alone never grants permission. Tool steering likewise returns a blocked
-tool result for the agent to handle. A postcheck happens after execution and cannot
-undo side effects. Postcheck failures replace the result and do not replay the call.
+call. A steered precheck blocks the current generation and returns hosted guidance;
+choose any revised proposal explicitly and submit it through a new check. Guidance
+alone never grants permission. Tool steering likewise returns a blocked tool result
+for the agent to handle. A postcheck happens after execution and cannot undo side
+effects. Postcheck failures replace the result and do not replay the call.
 
 `on_violation_callback(info, result)` receives the step/stage and public Rule
 provenance: `rule_id`, `rule_name`, `check_id`, `stage`, `recovery_feedback`, plus
