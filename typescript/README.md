@@ -3,12 +3,13 @@
 A typed client for the hosted Norma runtime. Requires Node.js 20 or later.
 
 ```sh
-npm install /path/to/norma-sdk-4.0.0-dev.1.tgz
+npm install --ignore-scripts 'https://norma-platform.cloud/artifacts/norma-sdk-4.0.0-dev.1.tgz'
 export NORMA_RUNTIME_URL=https://your-tenant.example/api/runtime
 export NORMA_AGENT_KEY=your-agent-key
 ```
 
-The local candidate is `norma-sdk@4.0.0-dev.1`. It has not been published to a registry.
+The alpha SDK is `norma-sdk@4.0.0-dev.1`. The download endpoint becomes available
+with deployment; it is not live yet. This package has not been published to a registry.
 
 Use the runtime URL from your Norma connection settings, including its path prefix. The Agent Key is sent in `X-API-Key`. HTTPS is required except for loopback development. Redirects are rejected. There is no auth-mode or tenant-ID setting.
 

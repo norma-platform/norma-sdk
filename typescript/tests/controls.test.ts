@@ -61,6 +61,56 @@ describe('shared Console control helper fixtures', () => {
     expect(Object.isFrozen(result.authoredDocument?.controls)).toBe(true);
   });
 
+  it.each(['raw', 'parsed'])('keeps a rejected %s authored document immutable', (inputKind) => {
+    const source = { execution: 'server', parameters: { nested: ['original'] } };
+    const result = validateAuthoredControls(
+      inputKind === 'raw' ? JSON.stringify(source) : source,
+      undefined,
+    );
+
+    expect(result.status).toBe('invalid');
+    expect(result.authoredDocument).not.toBeNull();
+    expect(Object.isFrozen(result.authoredDocument)).toBe(true);
+    expect(Object.isFrozen(result.authoredDocument?.parameters)).toBe(true);
+    expect(Reflect.set(result.authoredDocument ?? {}, 'execution', 'changed')).toBe(false);
+    source.parameters.nested.push('changed');
+    expect(result.authoredDocument?.parameters).toEqual({ nested: ['original'] });
+  });
+
+  it.each([
+    { name: 'below minimum', value: [], minimum: 2, maximum: 5, code: 'control_value_out_of_bounds' },
+    { name: 'above maximum', value: ['a', 'b'], minimum: 0, maximum: 1, code: 'control_value_out_of_bounds' },
+    { name: 'inverted bounds', value: ['a'], minimum: 5, maximum: 2, code: 'control_declaration_invalid' },
+  ])('rejects list defaults or bounds outside the declaration: $name', ({ value, minimum, maximum, code }) => {
+    const capabilities = {
+      contract: 'rule-controls-v1', fingerprint: 'c'.repeat(64), manifests: [{
+        evaluator: 'json', evaluator_version: '3.2.1', schema_fingerprint: 'a'.repeat(64),
+        slots: [{
+          evaluator: 'json', evaluator_version: '3.2.1', schema_fingerprint: 'a'.repeat(64),
+          path_template: '/config/tags', control_types: ['string_list'],
+          predicates: [], applicability: [], affects: 'decision',
+          expected_value_schema: { types: ['string_list'], min_items: 0, max_items: 128 },
+          requires_server_validation: false,
+        }],
+      }],
+    };
+    const source = {
+      execution: 'server',
+      condition: { selector: { path: 'input' }, evaluator: {
+        name: 'json', config: { tags: { $param: 'tags' } },
+      } },
+      controls: { tags: {
+        type: 'string_list', label: 'Tags', default: value,
+        min_items: minimum, max_items: maximum,
+      } },
+    };
+
+    const result = validateAuthoredControls(JSON.stringify(source), capabilities);
+
+    expect(result.status).toBe('invalid');
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain(code);
+  });
+
   it('does not invoke accessors while admitting parsed object input', () => {
     let invoked = false;
     const source = Object.defineProperty({}, 'execution', {

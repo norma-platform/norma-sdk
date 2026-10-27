@@ -308,15 +308,15 @@ export function validateAuthoredControls(
   if (!isRecord(document)) {
     return result("invalid", sourceValidation, false, [...diagnostics, diag("control_source_invalid_shape", "", "Authored source must be an object.")], null);
   }
-  const retiredField = ["template", "template_values", "parameters"].find((key) => Object.hasOwn(document, key));
-  if (retiredField) {
-    return result("invalid", sourceValidation, false,
-      [diag("control_declaration_invalid", `/${escapePointer(retiredField)}`, "Unsupported Rule field.")], document);
-  }
   try {
     validateTree(document);
   } catch {
     return result("invalid", "invalid", false, [...diagnostics, diag("control_source_invalid_json", "", "Source is outside strict JSON bounds.")], null);
+  }
+  const retiredField = ["template", "template_values", "parameters"].find((key) => Object.hasOwn(document, key));
+  if (retiredField) {
+    return result("invalid", sourceValidation, false,
+      [diag("control_declaration_invalid", `/${escapePointer(retiredField)}`, "Unsupported Rule field.")], freezeJson(document));
   }
 
   const rawControls = document.controls;
@@ -731,6 +731,9 @@ function validateDeclaration(key: string, raw: JsonValue, diagnostics: ControlDi
     if (!Array.isArray(value) || value.length > maxListItems || value.some((item) => typeof item !== "string" || !hasUnicodeScalars(item) || scalarLength(item) > maxStringScalars)) diagnostics.push(diag("control_value_out_of_bounds", `${pointer}/default`, "Default must be a bounded list of strings."));
     if (raw.allowed_values != null) validateAllowedValues(raw.allowed_values, pointer, diagnostics, false);
     for (const field of ["min_items", "max_items"] as const) if (raw[field] != null && !boundedInteger(raw[field], maxListItems)) diagnostics.push(diag("control_declaration_invalid", `${pointer}/${field}`, "List bounds must be bounded nonnegative integers."));
+    if (boundedInteger(raw.min_items, maxListItems) && boundedInteger(raw.max_items, maxListItems) && raw.min_items > raw.max_items) diagnostics.push(diag("control_declaration_invalid", pointer, "Minimum list size exceeds maximum."));
+    if (Array.isArray(value) && boundedInteger(raw.min_items, maxListItems) && value.length < raw.min_items) diagnostics.push(diag("control_value_out_of_bounds", `${pointer}/default`, "Default list is shorter than its minimum."));
+    if (Array.isArray(value) && boundedInteger(raw.max_items, maxListItems) && value.length > raw.max_items) diagnostics.push(diag("control_value_out_of_bounds", `${pointer}/default`, "Default list exceeds its maximum."));
     if (Array.isArray(value) && value.some((item) => Array.isArray(raw.allowed_values) && !raw.allowed_values.includes(item))) diagnostics.push(diag("control_value_out_of_bounds", `${pointer}/default`, "Default list contains an item outside allowed values."));
   }
 }

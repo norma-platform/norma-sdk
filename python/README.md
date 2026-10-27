@@ -10,10 +10,12 @@ local evaluator plugins, runtime service, deployment code or management console.
 Requires Python 3.12+. The SDK version is `norma-sdk==8.7.1.dev3`. Install its wheel:
 
 ```sh
-python -m pip install /path/to/norma_sdk-8.7.1.dev3-py3-none-any.whl
+python -m pip install 'https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev3-py3-none-any.whl'
 export NORMA_RUNTIME_URL="https://your-runtime.example/api/runtime"
 export NORMA_AGENT_KEY="your-scoped-agent-key"
 ```
+
+The alpha download endpoint becomes available with deployment; it is not live yet.
 
 Use the exact runtime URL and scoped key issued by Console. HTTPS is required,
 except for loopback development. Agent identity is an explicit argument and is
