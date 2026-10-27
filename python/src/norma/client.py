@@ -7,6 +7,12 @@ from typing import Any, cast
 import httpx
 
 from .configuration import resolve_agent_key, resolve_url
+from .control_contract import (
+    CONTROL_CONTRACT_HEADER,
+    ControlContract,
+    is_control_contract_route,
+    require_control_acknowledgement,
+)
 from .errors import raise_for_norma_status
 from .validation import ensure_agent_name
 
@@ -26,11 +32,15 @@ class NormaClient:
         agent_key: str | None = None,
         timeout: float = 30.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        control_contract: ControlContract | None = None,
     ) -> None:
+        if control_contract not in (None, "rule-controls-v1"):
+            raise ValueError("control_contract must be 'rule-controls-v1' or None")
         self.base_url = resolve_url(runtime_url)
         self.timeout = timeout
         self._agent_key = resolve_agent_key(agent_key)
         self._transport = transport
+        self.control_contract = control_contract
         self._client: httpx.AsyncClient | None = None
 
     async def _guard_request(self, request: httpx.Request) -> None:
@@ -44,6 +54,19 @@ class NormaClient:
             base.port,
         ) or (prefix and not request.url.path.startswith(prefix + "/")):
             raise ValueError("Norma requests must remain within the configured runtime URL.")
+        contract_path = request.url.path[len(prefix) :] if prefix else request.url.path
+        is_contract_route = is_control_contract_route(request.method, contract_path)
+        supplied_contract = request.headers.get(CONTROL_CONTRACT_HEADER)
+        if supplied_contract is not None and (
+            self.control_contract is None
+            or not is_contract_route
+            or supplied_contract != self.control_contract
+        ):
+            raise ValueError(
+                "Control contract headers are managed by NormaClient.control_contract."
+            )
+        if self.control_contract is not None and is_contract_route:
+            request.headers[CONTROL_CONTRACT_HEADER] = self.control_contract
         request.headers["X-API-Key"] = self._agent_key
 
     async def _guard_response(self, response: httpx.Response) -> None:
@@ -54,6 +77,17 @@ class NormaClient:
         if response.is_error:
             await response.aread()
             raise_for_norma_status(response)
+        if self.control_contract is not None:
+            # The request URL includes the configured gateway prefix. Match only
+            # the API suffix so path-prefix deployments behave like direct URLs.
+            base_prefix = httpx.URL(self.base_url).path.rstrip("/")
+            path = (
+                response.request.url.path[len(base_prefix) :]
+                if base_prefix
+                else response.request.url.path
+            )
+            if is_control_contract_route(response.request.method, path):
+                await require_control_acknowledgement(response)
 
     async def __aenter__(self) -> "NormaClient":
         if self._client is not None:

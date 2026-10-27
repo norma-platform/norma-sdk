@@ -15,6 +15,7 @@ import {
   RegisterAgentOverwriteChanges,
   RegisterAgentOverwriteChanges$inboundSchema,
 } from "./register-agent-overwrite-changes.js";
+import { ControlReceipt, ControlReceipt$inboundSchema } from "./control-evidence.js";
 
 /**
  * Response from agent initialization.
@@ -36,6 +37,9 @@ export type RegisterAgentResponse = {
    * Detailed change summary for register overwrite mode.
    */
   overwriteChanges?: RegisterAgentOverwriteChanges | undefined;
+  controlContract?: "rule-controls-v1" | null;
+  agentGeneration?: string | null;
+  controlResolutions?: Array<ControlReceipt> | null;
 };
 
 /** @internal */
@@ -48,11 +52,17 @@ export const RegisterAgentResponse$inboundSchema: z.ZodMiniType<
     created: types.boolean(),
     overwrite_applied: z._default(types.boolean(), false),
     overwrite_changes: types.optional(RegisterAgentOverwriteChanges$inboundSchema),
+    control_contract: types.optional(z.nullable(z.literal("rule-controls-v1"))),
+    agent_generation: types.optional(z.nullable(types.string())),
+    control_resolutions: types.optional(z.nullable(z.array(ControlReceipt$inboundSchema))),
   }),
   z.transform((v) => {
     return remap$(v, {
       "overwrite_applied": "overwriteApplied",
       "overwrite_changes": "overwriteChanges",
+      "control_contract": "controlContract",
+      "agent_generation": "agentGeneration",
+      "control_resolutions": "controlResolutions",
     });
   }),
 );

@@ -9,6 +9,7 @@ from typing import Annotated, Literal, Self
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from .base import BaseModel
+from .control_evidence import ControlEvidenceSnapshot, ControlReceipt
 
 _PRIVATE_KEY = re.compile(
     r"-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----.*?"
@@ -167,6 +168,10 @@ class FinishVerdict(_StrictTurnModel):
     """Canonical finish decision; outcome records a terminal unverified finish separately."""
 
     execution_contract: str | None = None
+    control_contract: Literal["rule-controls-v1"] | None = None
+    agent_generation: str | None = Field(default=None, max_length=128)
+    control_resolutions: list[ControlReceipt] | None = None
+    control_evidence: list[ControlEvidenceSnapshot] | None = None
     verdict: Literal["pass", "hold", "unsure", "unavailable"]
     reason: str = Field(max_length=600)
     reason_codes: list[str] = Field(default_factory=list)

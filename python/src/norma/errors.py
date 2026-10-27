@@ -2,6 +2,7 @@
 """Safe public HTTP errors for every Norma SDK operation."""
 
 import re
+from dataclasses import dataclass
 from email.utils import format_datetime, parsedate_to_datetime
 from typing import Any
 
@@ -18,6 +19,7 @@ _SERVICE_CODES = frozenset(
         "CHECK_FAILED",
         "AUTH_MISCONFIGURED",
         "AUTH_UPSTREAM_REJECTED",
+        "CONTROL_STATE_UNAVAILABLE",
     }
 )
 _DIAGNOSTIC_CODES = frozenset(
@@ -35,6 +37,43 @@ _HTTP_DATE = re.compile(
     r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} "
     r"\d{2}:\d{2}:\d{2} GMT\Z"
 )
+_CONTROL_DIAGNOSTIC_CODES = frozenset({
+    "control_default_required", "control_declaration_invalid", "control_reference_invalid",
+    "control_reference_not_allowed", "control_reference_unknown", "control_unused",
+    "control_symbol_conflict", "control_type_mismatch", "control_value_out_of_bounds",
+    "control_destination_invalid", "control_execution_unsupported",
+    "control_capability_unavailable", "control_override_incompatible",
+    "control_evidence_size_exceeded",
+})
+_JSON_POINTER = re.compile(r"(?:/(?:[^~/]|~[01])*)*\Z")
+
+
+@dataclass(frozen=True, slots=True)
+class ControlRequestDiagnostic:
+    """A sanitized compiler diagnostic without echoed values or messages."""
+
+    code: str
+    source_pointer: str
+
+
+def _control_diagnostics(payload: dict[str, Any]) -> tuple[ControlRequestDiagnostic, ...]:
+    raw = payload.get("errors")
+    if not isinstance(raw, list):
+        return ()
+    result: list[ControlRequestDiagnostic] = []
+    for item in raw[:50]:
+        if not isinstance(item, dict):
+            continue
+        code, pointer = item.get("code"), item.get("field")
+        if (
+            isinstance(code, str)
+            and code in _CONTROL_DIAGNOSTIC_CODES
+            and isinstance(pointer, str)
+            and len(pointer) <= 1024
+            and _JSON_POINTER.fullmatch(pointer)
+        ):
+            result.append(ControlRequestDiagnostic(code=code, source_pointer=pointer))
+    return tuple(result)
 
 
 def _known_code(payload: dict[str, Any], status: int) -> str | None:
@@ -70,6 +109,22 @@ def _retry_after(value: str | None) -> str | None:
         except (ValueError, OverflowError):
             pass
     return None
+
+
+def _step_schema_conflict(payload: dict[str, Any]) -> bool:
+    details = payload.get("details")
+    if isinstance(details, dict) and details.get("kind") == "Step":
+        return True
+    errors = payload.get("errors")
+    if isinstance(errors, list) and any(
+        isinstance(error, dict)
+        and error.get("resource") == "Step"
+        and error.get("code") == "schema_mismatch"
+        for error in errors
+    ):
+        return True
+    detail = payload.get("detail")
+    return isinstance(detail, str) and detail.startswith("Step schema conflict for ")
 
 
 class NormaAPIError(httpx.HTTPStatusError):
@@ -126,12 +181,28 @@ class NormaAPIError(httpx.HTTPStatusError):
         elif status == 409:
             code = str(supplied or "NORMA_CONFLICT")
             detail = "The request conflicts with the saved configuration."
-            hint = (
-                "For checkpoint schema changes, ask a workspace owner to open "
-                "the agent's Connection page in Console, choose Review schema update, "
-                "and review checkpoint_schemas() before "
-                "replacing schemas. Then retry initialization in strict mode."
-            )
+            hint = "Review the saved configuration before retrying."
+            if (
+                code == "NORMA_SCHEMA_INCOMPATIBLE"
+                and response.request.method == "POST"
+                and response.request.url.path.endswith("/api/v1/agents/register")
+            ):
+                if payload.get("detail") == (
+                    "This agent's registration changed after you opened the schema review."
+                ):
+                    hint = (
+                        "Reload the saved registration in Console, inspect your proposed schemas "
+                        "against the current registration, then choose Save changes."
+                    )
+                elif _step_schema_conflict(payload):
+                    hint = (
+                        "The rejected proposal was not saved or imported automatically. "
+                        "Export the complete SDK steps array as JSON "
+                        "(norma.checkpoint_schemas() for Python decorators). Ask a workspace owner "
+                        "to open Console → Agents → your agent → Connection → Edit step schemas → "
+                        "Import schemas (or paste the JSON). Inspect the diff, choose "
+                        "Save changes, then retry initialization with conflict_mode='strict'."
+                    )
         elif status == 404:
             code = str(supplied or "NORMA_NOT_FOUND")
             detail = "The requested Norma resource was not found."
@@ -160,6 +231,7 @@ class NormaAPIError(httpx.HTTPStatusError):
                 self.request_id = request_id
                 break
         self.retry_after = _retry_after(response.headers.get("retry-after"))
+        self.diagnostics = _control_diagnostics(payload)
         self.code = code
         self.hint = hint
         self.status = self.status_code = status

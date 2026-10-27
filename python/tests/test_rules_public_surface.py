@@ -33,6 +33,11 @@ def test_hosted_rule_schema_and_local_authoring_rejection() -> None:
     assert definition.execution == "server"
     with pytest.raises(ValidationError):
         RuleDefinition.model_validate({**definition.model_dump(), "execution": "sdk"})
+    for retired in ("template", "template_values", "parameters"):
+        assert retired not in RuleDefinition.model_fields
+        with pytest.raises(ValidationError):
+            RuleDefinition.model_validate({**definition.model_dump(), retired: {}})
+    assert "rendered_state" not in inspect.signature(norma.agents.list_agent_rules_typed).parameters
     assert RuleDefinition.model_json_schema()["properties"]["execution"]["const"] == "server"
 
 
@@ -201,7 +206,7 @@ async def test_agent_summaries_and_overwrite_details_normalize_known_fields() ->
     assert summary["agents"][0]["active_rules_count"] == 2
     assert registered["rules"][0]["definition"] is None
     assert registered["rules"][0]["status"] == "unsupported"
-    assert registered["rules"][1]["status"] == "unrendered"
+    assert registered["rules"][1]["status"] == "unsupported"
     assert registered["rules"][1]["definition"] is None
     removal = registered["overwrite_changes"]["evaluator_removals"][0]
     assert removal == {"rule_ids": [7], "rule_names": ["old"], "referenced_by_active_rules": True}

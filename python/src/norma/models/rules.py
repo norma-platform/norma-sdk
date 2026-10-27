@@ -8,7 +8,6 @@ from pydantic import ConfigDict, Field
 from .actions import ActionDecision
 from .agent import JSONObject, JSONValue
 from .base import BaseModel
-from .parameter_binding import ParameterBinding
 from .semantic import CheckOutcome, SemanticObservation
 from .turn import FinishFinding
 
@@ -49,9 +48,6 @@ class RuleDefinition(BaseModel):
     scope: RuleScope | None = None
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
-    parameters: ParameterBinding | None = Field(default=None, exclude_if=lambda v: v is None)
-    template: JSONValue = None
-    template_values: dict[str, JSONValue] | None = None
 
 
 class EvaluatorResult(BaseModel):

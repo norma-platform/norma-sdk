@@ -42,15 +42,11 @@ import { Result } from "../types/fp.js";
  * ``register`` and ``POST /checks`` so all three surfaces return the
  * same set for the same inputs.
  *
- * By default, the endpoint returns all effective rules, including
- * rendered rules, disabled rules, and unrendered template drafts.
- * Callers can narrow the response via the state filters. Filters
- * intersect, so unrendered drafts require rendered_state='unrendered'
- * together with enabled_state='all' or 'disabled'.
+ * By default, the endpoint returns all effective Rules, including enabled
+ * and disabled Rules. Callers can narrow the response with enabled_state.
  *
  * Args:
  *     agent_name: Agent identifier
- *     rendered_state: Whether to return rendered rules, unrendered drafts, or both
  *     enabled_state: Whether to return enabled rules, disabled rules, or both
  *     target_type: Optional opaque target kind (paired with target_id)
  *     target_id: Optional opaque target identifier (paired with target_type)
@@ -135,7 +131,6 @@ async function $do(
 
   const query = encodeFormQuery({
     "enabled_state": payload.enabled_state,
-    "rendered_state": payload.rendered_state,
     "target_id": payload.target_id,
     "target_type": payload.target_type,
   });

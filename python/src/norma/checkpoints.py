@@ -370,7 +370,11 @@ async def _evaluate(
 ) -> dict[str, Any]:
     """Check the current hosted Rules before interpreting the remote decision."""
     target_type, target_id = _resolve_session_target(None, None)
-    async with NormaClient(runtime_url=server_url, agent_key=_session_state.api_key) as client:
+    async with NormaClient(
+        runtime_url=server_url,
+        agent_key=_session_state.api_key,
+        control_contract=_session_state.control_contract,
+    ) as client:
         result = await _request_remote_check(
             client,
             agent_name,

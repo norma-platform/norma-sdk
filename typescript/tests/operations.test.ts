@@ -27,6 +27,7 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 }
 function harness(respond: (request: Request) => Promise<Response>, config: {
   agentKey?: string | (() => Promise<string>); targetType?: string; targetId?: string;
+  controlContract?: "rule-controls-v1";
 } = {}) {
   const requests: Request[] = [];
   const transport = new HTTPClient({ fetcher: async (input) => {
@@ -288,6 +289,32 @@ describe("current shared operation receipt fixture", () => {
     expect(result.verifications[0].assessment).toMatchObject({ outcome: "unknown", claimScope: "correlated_external_effect",
       observedFacts: [{ evidenceId: "outbox", origin: "caller_asserted", status: "untrusted" }],
       unsatisfiedCriteria: ["record-present"] });
+  });
+
+  it("requires dual acknowledgement and preserves frozen control evidence on operation readback", async () => {
+    const receiptValue = {
+      contract: "rule-controls-v1", capabilities_fingerprint: "a".repeat(64), declaration_fingerprint: "b".repeat(64),
+      defaults: { age: 90 }, effective_values: { age: 120 }, values_fingerprint: "c".repeat(64),
+      value_sources: { age: "agent_override" }, references: [], overridden_keys: ["age"],
+      agent_generation: "generation-1", agent_name: AGENT, rule_id: 7, rule_version: 3, override_revision: 4,
+      effective_fingerprint: "d".repeat(64),
+    };
+    const frozenEvidence = { schema_version: 1, completeness: "incomplete", agent_name: AGENT,
+      agent_generation: "generation-1", rule_id: 7, rule_version: 3, definition_fingerprint: "d".repeat(64),
+      receipt: receiptValue, references: [] };
+    const value = receipt();
+    value.control_contract = "rule-controls-v1";
+    value.agent_generation = "generation-1";
+    value.decision.check = { ...value.decision.check, control_contract: "rule-controls-v1",
+      agent_generation: "generation-1", control_resolutions: [receiptValue], control_evidence: [frozenEvidence] };
+    const { client, requests } = harness(async () => json(value, 200, { "X-Norma-Control-Contract": "rule-controls-v1" }), {
+      controlContract: "rule-controls-v1",
+    });
+    const result = await client.operations.get(operationId);
+    expect(requests[0]?.headers.get("X-Norma-Control-Contract")).toBe("rule-controls-v1");
+    expect(result.controlContract).toBe("rule-controls-v1");
+    expect(result.agentGeneration).toBe("generation-1");
+    expect(result.decision.controlEvidence?.[0]?.receipt?.effectiveValues).toEqual({ age: 120 });
   });
 });
 

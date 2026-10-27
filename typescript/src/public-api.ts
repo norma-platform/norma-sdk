@@ -3,6 +3,7 @@
 import type { JsonObject, JsonValue } from "./types";
 import type { SemanticObservation, RecoveryFeedback } from "./internal/semantic-check";
 import type { StepSchema } from "./generated/models/step-schema";
+import type { ControlEvidenceSnapshot, ControlReceipt } from "./generated/models/control-evidence";
 
 export interface RequestOptions { signal?: AbortSignal; timeoutMs?: number }
 export type RuleDecision = "deny" | "steer" | "observe";
@@ -13,15 +14,12 @@ export interface RuleCondition {
   selector?: {path?: string | null} | null; evaluator?: {name: string; config: JsonObject} | null;
 }
 export interface RuleDefinition {
-  /** Frozen server-owned shared parameter revision; instrumentation is unchanged. */
-  parameters?: JsonObject | null;
   mode?: "enforce" | "observe";
   execution: "server"; enabled?: boolean; action: RuleAction; condition: RuleCondition;
   description?: string | null; scope?: RuleScope; tags?: string[];
-  template?: JsonObject | null; templateValues?: Record<string, string | boolean | string[]> | null;
 }
-/** Historical unsupported definitions remain visible without becoming authorable hosted rules. */
-export interface Rule { id: number; name: string; definition: RuleDefinition | null; status: "hosted" | "unsupported" | "unrendered" }
+/** Hosted Rules are available; unsupported definitions remain visible without becoming authorable. */
+export interface Rule { id: number; name: string; definition: RuleDefinition | null; status: "hosted" | "unsupported" }
 export interface RuleResult {
   matched: boolean; confidence: number; outcome?: "matched" | "not_matched" | "unresolved" | null;
   error?: string | null; message?: string | null; metadata?: JsonObject | null;
@@ -41,7 +39,11 @@ export interface CheckRequest {
     context?: JsonObject | null; tools?: JsonObject[] | null };
   targetType?: string | null; targetId?: string | null;
 }
-export interface Decision { allowed: boolean; reason: string | null; checks: CheckResult[]; recoveryFeedback?: RecoveryFeedback[] | null }
+export interface Decision {
+  allowed: boolean; reason: string | null; checks: CheckResult[]; recoveryFeedback?: RecoveryFeedback[] | null;
+  controlContract?: "rule-controls-v1" | null; agentGeneration?: string | null;
+  controlResolutions?: ControlReceipt[] | null; controlEvidence?: ControlEvidenceSnapshot[] | null;
+}
 export type CheckResponse = Decision;
 export interface ChecksApi { check(request: CheckRequest, options?: RequestOptions): Promise<Decision> }
 
@@ -61,10 +63,14 @@ export interface AgentsApi {
     pagination: Pagination }>;
   register(request: {agent: Agent; conflictMode?: "strict" | "overwrite"; evaluators?: EvaluatorSchema[]; forceReplace?: boolean;
     steps?: StepSchema[]; targetType?: string | null; targetId?: string | null}, options?: RequestOptions): Promise<{
-      rules?: Rule[]; created: boolean; overwriteApplied: boolean; overwriteChanges?: AgentOverwriteChanges | null }>;
+      rules?: Rule[]; created: boolean; overwriteApplied: boolean; overwriteChanges?: AgentOverwriteChanges | null;
+      controlContract?: "rule-controls-v1" | null; agentGeneration?: string | null;
+      controlResolutions?: ControlReceipt[] | null }>;
   get(request: {agentName: string}, options?: RequestOptions): Promise<{agent: Agent; evaluators?: EvaluatorSchema[]; steps?: StepSchema[]}>;
   update(request: {agentName: string; body: {removeEvaluators?: string[]; removeSteps?: StepKey[]}}, options?: RequestOptions): Promise<{evaluatorsRemoved?: string[]; stepsRemoved?: StepKey[]}>;
-  listRules(request: {agentName: string}, options?: RequestOptions): Promise<{rules: Rule[]}>;
+  listRules(request: {agentName: string}, options?: RequestOptions): Promise<{rules: Rule[];
+    controlContract?: "rule-controls-v1" | null; agentGeneration?: string | null;
+    controlResolutions?: ControlReceipt[] | null}>;
   listEvaluators(request: {agentName: string}, options?: RequestOptions): Promise<{evaluators: EvaluatorSchema[]}>;
   getEvaluator(request: {agentName: string; evaluatorName: string}, options?: RequestOptions): Promise<EvaluatorSchema>;
 }

@@ -63,6 +63,33 @@ export function buildCheckEvents(
       metadata.semantic_observation_id = observation.observationId;
       metadata.check_release = observation.checkRelease;
     }
+    if (response.controlContract === "rule-controls-v1") {
+      const evidence = response.controlEvidence?.filter((item) => item.ruleId === match.ruleId) ?? [];
+      metadata.control_contract = response.controlContract;
+      if (response.agentGeneration) metadata.agent_generation = response.agentGeneration;
+      if (evidence.length) {
+        // Observation events carry disposition and identity only. Frozen control
+        // values and raw numeric observations stay on the check response.
+        metadata.control_evidence = evidence.map((item) => ({
+          completeness: item.completeness,
+          definition_fingerprint: item.definitionFingerprint,
+          references: item.references.map((reference) => ({
+            destination_pointer: reference.destinationPointer,
+            disposition: reference.disposition,
+            ...(reference.unavailableReason ? { unavailable_reason: reference.unavailableReason } : {}),
+            numeric_comparisons: reference.numericComparisons.map((comparison) => ({
+              field_path: comparison.fieldPath,
+              operator: comparison.operator,
+              outcome: comparison.outcome,
+              ...(comparison.observedState ? { observed_state: comparison.observedState } : {}),
+              ...(comparison.reason ? { reason: comparison.reason } : {}),
+            })),
+            ...(reference.numericComparisonsTruncated === undefined
+              ? {} : { numeric_comparisons_truncated: reference.numericComparisonsTruncated }),
+          })),
+        }));
+      }
+    }
     return {
       checkId: match.checkId || globalThis.crypto.randomUUID(),
       traceId: "0".repeat(32), spanId: "0".repeat(16),

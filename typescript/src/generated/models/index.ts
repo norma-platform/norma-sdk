@@ -5,6 +5,7 @@ export * from "./batch-events-response.js";
 export * from "./validation-error.js";
 export * from "./evaluator-info.js";
 export * from "./check-response.js";
+export * from "./control-evidence.js";
 export * from "./check-request.js";
 export * from "./get-rule-binding-response.js";
 export * from "./list-rule-bindings-response.js";

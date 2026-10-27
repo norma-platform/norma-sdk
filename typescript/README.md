@@ -3,12 +3,12 @@
 A typed client for the hosted Norma runtime. Requires Node.js 20 or later.
 
 ```sh
-npm install /path/to/norma-sdk-4.0.0-dev.0.tgz
+npm install /path/to/norma-sdk-4.0.0-dev.1.tgz
 export NORMA_RUNTIME_URL=https://your-tenant.example/api/runtime
 export NORMA_AGENT_KEY=your-agent-key
 ```
 
-The tested local prerelease is `norma-sdk@4.0.0-dev.0`. An unversioned registry install does not identify this candidate. Registry publication and package-name ownership have not been established.
+The local candidate is `norma-sdk@4.0.0-dev.1`. It has not been published to a registry.
 
 Use the runtime URL from your Norma connection settings, including its path prefix. The Agent Key is sent in `X-API-Key`. HTTPS is required except for loopback development. Redirects are rejected. There is no auth-mode or tenant-ID setting.
 
@@ -35,7 +35,59 @@ await client.flushObservability();
 
 The runtime must support `hosted-v1`: every check sends `execution_mode: "hosted"` and requires `execution_contract: "hosted-v1"` in the response. Missing proof fails closed; an older runtime must be upgraded. The runtime must reject local-only rules from the same effective-rule snapshot used to evaluate.
 
+For pure authored-rule checks and the opt-in Console controls receipt/evidence flow, see the [controls guide](../docs/controls.md). The controls option only negotiates read/check projections; authoring and changing per-agent values remain Console operations.
+
 `checkpoint` evaluates before and after one invocation. A denied or failed precheck prevents the function from running. A failed postcheck raises `CheckError` after the function has run; do not automatically replay that action. `RuleViolationError` and `RuleSteerError` expose rule and check IDs. `checkFinish` and `TurnRecorder` support bounded final-turn checks and action recording.
+
+## Recover from a schema conflict
+
+A registration error with HTTP `409`, `SCHEMA_INCOMPATIBLE` and a step schema
+mismatch means the proposed input/output schemas conflict with saved step schemas.
+The rejected request does not save or stage a proposal in Console. Keep startup stopped and export the exact
+complete `steps` array supplied to `client.agents.register`.
+
+Move that array into an `agent-steps.ts` module as an exported constant named
+`steps`, preserving every schema. Import the same array in your registration code
+and in this separate `export-step-schemas.ts` script. The definitions module must
+not initialize a client, make network requests or execute application work on import.
+
+```ts
+import { writeFileSync } from "node:fs";
+import { steps } from "./agent-steps.js";
+
+writeFileSync("norma-step-schemas.json", JSON.stringify(steps, null, 2) + "\n", "utf8");
+```
+
+Compile/run the export script with your project's TypeScript setup. It needs no
+credentials, client initialization, registration request or checkpoint execution.
+Console accepts the SDK's `inputSchema`/`outputSchema` fields as well as the JSON
+wire format's `input_schema`/`output_schema`; do not include both spellings on the
+same step or rename fields inside the schemas.
+
+As the workspace owner, open **Agents → your agent → Connection → Edit step
+schemas**. The editor initially contains the **saved** schemas. Choose **Import
+schemas** and select `norma-step-schemas.json`, or paste its array into the editor.
+For one change, you can instead import or paste a single complete step object.
+Console adds or replaces the step with that `(type, name)` and preserves the other
+steps. Use the complete SDK array when reconciling all startup schemas; an array
+replaces the full list, so include every step that must remain registered.
+
+Review the diff and affected Rules/callers, confirm any removals, then choose
+**Save changes**. Importing only changes the draft. Attached Rules remain in place.
+
+Retry registration with the original scoped Agent Key and the same definitions:
+
+```ts
+await client.agents.register({
+  agent: { agentName: "your-agent-name" },
+  steps,
+  conflictMode: "strict",
+});
+```
+
+Strict comparisons use the complete input/output schema objects. Do not
+automatically retry with `overwrite` or a stronger key. If another owner updates
+the registration during review, reload and review against the latest saved version.
 
 ### Observed state
 

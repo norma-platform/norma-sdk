@@ -21,6 +21,34 @@ function client(enabled = true): NormaClient {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("observed check reporting", () => {
+  it("forwards bounded control dispositions without values or raw observations", async () => {
+    const fetch = vi.fn().mockImplementation((req: Request) => Promise.resolve(req.url.endsWith("/checks")
+      ? json({ execution_contract: "hosted-v1", control_contract: "rule-controls-v1", agent_generation: "generation-1",
+        allowed: true, confidence: 1, non_matches: [match(7)], control_evidence: [{ schema_version: 1,
+          completeness: "incomplete", agent_name: "demo-agent", agent_generation: "generation-1", rule_id: 7,
+          rule_version: 3, definition_fingerprint: "a".repeat(64), receipt: {
+            contract: "rule-controls-v1", capabilities_fingerprint: "b".repeat(64), declaration_fingerprint: "c".repeat(64),
+            defaults: { age: 18 }, effective_values: { age: 18 }, values_fingerprint: "d".repeat(64), value_sources: { age: "default" },
+            references: [{ key: "age", source_pointer: "/controls/age", destination_pointer: "/condition/evaluator/config/min", evaluator_pointer: "/condition/evaluator", slot: {} }],
+            overridden_keys: [], agent_generation: "generation-1", agent_name: "demo-agent", rule_id: 7,
+            rule_version: 3, override_revision: 0, effective_fingerprint: "a".repeat(64),
+          },
+          references: [{ key: "age", destination_pointer: "/condition/evaluator/config/min", configured_default: 18,
+            effective_value: 18, value_source: "default", disposition: "evaluated",
+            numeric_comparisons: [{ field_path: "age", operator: "min", observed: 19, expected: 18, outcome: "passed" }] }] }] })
+      : json({ received: 1, enqueued: 1, dropped: 0, status: "queued" }, 202)));
+    vi.stubGlobal("fetch", fetch);
+    const sdk = client();
+    await checkFor(sdk).check(request);
+    await sdk.flushObservability();
+    const eventRequest = fetch.mock.calls.map(([req]) => req as Request).find((req) => req.url.endsWith("/observability/events"))!;
+    const events = await eventRequest.json() as { events: Array<{ metadata: Record<string, unknown> }> };
+    expect(events.events[0]?.metadata).toMatchObject({ control_contract: "rule-controls-v1", agent_generation: "generation-1",
+      control_evidence: [{ completeness: "incomplete", references: [{ disposition: "evaluated",
+        numeric_comparisons: [{ operator: "min", outcome: "passed" }] }] }] });
+    expect(JSON.stringify(events)).not.toMatch(/private-default|private-effective|"observed"/);
+  });
+
   it("reports all observed categories and sanitized condition context with exact supplied IDs", async () => {
     // Given: matched, unmatched, unresolved and evaluator-error results from one check.
     const fetch = vi.fn().mockResolvedValueOnce(json({

@@ -35,12 +35,38 @@ from .checkpoints import (
 )
 from .client import NormaClient
 from .configuration import resolve_environment, resolve_url
-from .errors import NormaAPIError
+from .control_contract import ControlContract, UnsupportedControlContractError
+from .controls import (
+    BooleanControlDeclaration,
+    ControlApplicabilityOperator,
+    ControlApplicabilityPredicate,
+    ControlDeclaration,
+    ControlDiagnostic,
+    ControlEvaluatorManifest,
+    ControlExpectedValueSchema,
+    ControlReference,
+    ControlSlotDescriptor,
+    ControlStatus,
+    ControlType,
+    ControlValidationResult,
+    EnumControlDeclaration,
+    NumberControlDeclaration,
+    SourceValidation,
+    StringControlDeclaration,
+    StringListControlDeclaration,
+    TrustedControlCapabilities,
+    validate_authored_controls,
+)
+from .errors import ControlRequestDiagnostic, NormaAPIError
 from .finish import TurnRecorder, check_finish
 from .models import (
     Agent,
+    ControlEvidenceSnapshot,
+    ControlReceipt,
+    ControlReferenceEvidence,
     Decision,
     JSONObject,
+    NumericComparisonEvidence,
     RuleDefinition,
     RuleMatch,
     Step,
@@ -104,6 +130,7 @@ class _RefreshContext:
     api_key: str | None
     target_type: str | None
     target_id: str | None
+    control_contract: ControlContract | None
 
 
 def _get_server_rules() -> list[dict[str, Any]] | None:
@@ -173,6 +200,7 @@ def _snapshot_refresh_context() -> _RefreshContext:
         api_key = _session_state.api_key
         target_type = _session_state.target_type
         target_id = _session_state.target_id
+        control_contract = _session_state.control_contract
 
     if agent is None:
         raise RuntimeError("Agent not initialized. Call norma.init() first.")
@@ -186,6 +214,7 @@ def _snapshot_refresh_context() -> _RefreshContext:
         api_key=api_key,
         target_type=target_type,
         target_id=target_id,
+        control_contract=control_contract,
     )
 
 
@@ -194,11 +223,11 @@ async def _fetch_rules_for_context_async(context: _RefreshContext) -> list[dict[
     async with NormaClient(
         runtime_url=context.server_url,
         agent_key=context.api_key,
+        control_contract=context.control_contract,
     ) as client:
         response = await agents._list_agent_rules(
             client,
             context.agent_name,
-            rendered_state="rendered",
             enabled_state="enabled",
             target_type=context.target_type,
             target_id=context.target_id,
@@ -363,6 +392,7 @@ def init(
     policy_refresh_interval_seconds: int = 60,
     target_type: str | None = None,
     target_id: str | None = None,
+    control_contract: ControlContract | None = None,
     otel_tracer_provider: TracerProvider | None = None,
     **kwargs: object,
 ) -> Agent:
@@ -404,6 +434,8 @@ def init(
     normalized_name = ensure_agent_name(resolved_agent_name)
     if conflict_mode not in ("strict", "overwrite"):
         raise ValueError("conflict_mode must be 'strict' or 'overwrite'.")
+    if control_contract not in (None, "rule-controls-v1"):
+        raise ValueError("control_contract must be 'rule-controls-v1' or None.")
     if policy_refresh_interval_seconds < 0:
         raise ValueError("policy_refresh_interval_seconds must be >= 0")
     if (target_type is None) != (target_id is None):
@@ -438,6 +470,7 @@ def init(
         async with NormaClient(
             runtime_url=resolved_url,
             agent_key=resolved_key,
+            control_contract=control_contract,
         ) as client:
             response = await agents._register_agent(
                 client,
@@ -513,6 +546,7 @@ def init(
             _session_state.api_key_header = resolved_header
             _session_state.target_type = target_type
             _session_state.target_id = target_id
+            _session_state.control_contract = control_contract
             _session_state.initialization_failed = False
             if policy_refresh_interval_seconds > 0:
                 _start_policy_refresh_loop(policy_refresh_interval_seconds)
@@ -555,6 +589,7 @@ def _reset_state() -> None:
         _session_state.server_url = None
         _session_state.api_key = None
         _session_state.api_key_header = None
+        _session_state.control_contract = None
         _session_state.target_type = None
         _session_state.target_id = None
 
@@ -724,6 +759,10 @@ async def list_agents(
 __all__ = [
     "evaluate_rules",
     "Decision",
+    "ControlEvidenceSnapshot",
+    "ControlReceipt",
+    "ControlReferenceEvidence",
+    "NumericComparisonEvidence",
     "RuleDefinition",
     "RuleMatch",
     "add_event",
@@ -733,7 +772,11 @@ __all__ = [
     "Step",
     "StepSchema",
     "NormaClient",
+    "ControlContract",
+    "UnsupportedControlContractError",
     "NormaAPIError",
+    "ControlDiagnostic",
+    "ControlRequestDiagnostic",
     "CheckError",
     "RuleViolationError",
     "RuleSteerError",
@@ -758,6 +801,25 @@ __all__ = [
     "with_trace",
     "set_trace_context_provider",
     "clear_trace_context_provider",
+    "ControlApplicabilityPredicate",
+    "ControlApplicabilityOperator",
+    "ControlDeclaration",
+    "ControlDiagnostic",
+    "ControlEvaluatorManifest",
+    "ControlExpectedValueSchema",
+    "EnumControlDeclaration",
+    "NumberControlDeclaration",
+    "BooleanControlDeclaration",
+    "StringControlDeclaration",
+    "StringListControlDeclaration",
+    "ControlReference",
+    "ControlSlotDescriptor",
+    "ControlStatus",
+    "ControlType",
+    "ControlValidationResult",
+    "SourceValidation",
+    "TrustedControlCapabilities",
+    "validate_authored_controls",
 ]
 
 

@@ -4,19 +4,16 @@
 A standalone hosted client for registration, Rule checkpoints, operation receipts,
 finish checks, framework adapters and event delivery. It contains no policy engine,
 local evaluator plugins, runtime service, deployment code or management console.
-This is an unpublished source/build candidate.
 
 ## Install and configure
 
-Requires Python 3.12+. The tested local prerelease is `norma-sdk==8.7.1.dev1`. Install its built wheel:
+Requires Python 3.12+. The SDK version is `norma-sdk==8.7.1.dev3`. Install its wheel:
 
 ```sh
-python -m pip install /path/to/norma_sdk-8.7.1.dev1-py3-none-any.whl
+python -m pip install /path/to/norma_sdk-8.7.1.dev3-py3-none-any.whl
 export NORMA_RUNTIME_URL="https://your-runtime.example/api/runtime"
 export NORMA_AGENT_KEY="your-scoped-agent-key"
 ```
-
-This local prerelease artifact is the tested candidate; registry publication and package-name ownership have not been established.
 
 Use the exact runtime URL and scoped key issued by Console. HTTPS is required,
 except for loopback development. Agent identity is an explicit argument and is
@@ -43,6 +40,8 @@ checkpoint can execute. Registration permissions remain enforced by the gateway.
 Explicit `runtime_url` and `agent_key` arguments override the two environment values.
 There is no authentication-type setting or configurable credential header.
 
+For pure authored-rule checks and the opt-in Console controls receipt/evidence flow, see the [controls guide](../docs/controls.md). The controls option only negotiates read/check projections; authoring and changing per-agent values remain Console operations.
+
 For explicit execution decisions:
 
 ```python
@@ -58,14 +57,74 @@ async def proposed_action():
             return your_application.send_message("Hello")
 ```
 
+## Recover from a schema conflict
+
+A registration error with HTTP `409`, `SCHEMA_INCOMPATIBLE` and a step schema
+mismatch means the proposed input/output schemas conflict with saved step schemas.
+The rejected request does not save or stage a proposal in Console. Keep startup stopped and export the
+complete proposed steps array from your code.
+
+Save this as `export_step_schemas.py` in your project. Replace the example import
+with **all modules defining this agent's checkpoints**. Those modules must only
+define functions at import time: keep `norma.init()`, network calls and application
+execution in your startup function or `if __name__ == "__main__":` block.
+
+```python
+import json
+from pathlib import Path
+
+import norma
+from norma.models import StepSchema
+from my_application import checkpoints  # Replace with your checkpoint modules.
+
+# If startup passes init(steps=...), use that same list here instead of [].
+explicit_steps = []
+explicit_schemas = [StepSchema.model_validate(step) for step in explicit_steps]
+explicit_keys = {(schema.type, schema.name) for schema in explicit_schemas}
+schemas = explicit_schemas + [
+    schema for schema in norma.checkpoint_schemas()
+    if (schema.type, schema.name) not in explicit_keys
+]
+Path("norma-step-schemas.json").write_text(
+    json.dumps([
+        schema.model_dump(mode="json", exclude_none=True) for schema in schemas
+    ], indent=2) + "\n",
+    encoding="utf-8",
+)
+```
+
+Run `python export_step_schemas.py` with the SDK installed. Collecting schemas
+needs no credentials, `norma.init()`, network request or checkpoint execution.
+Explicit steps take precedence over decorated steps with the same `(type, name)`,
+just as at initialization. Include every step that must remain registered, even
+when only one changed.
+
+As the workspace owner, open **Agents → your agent → Connection → Edit step
+schemas**. The editor initially contains the **saved** schemas. Choose **Import
+schemas** and select `norma-step-schemas.json`, or paste its array into the editor.
+For one change, you can instead import or paste a single complete step object.
+Console adds or replaces the step with that `(type, name)` and preserves the other
+steps. Use the complete SDK array when reconciling all startup schemas; an array
+replaces the full list, so include every step that must remain registered.
+
+Review the diff and affected Rules/callers, confirm any removals, then choose
+**Save changes**. Importing only changes the draft. Attached Rules remain in place.
+
+After saving, retry your original `norma.init(...)` call with `conflict_mode="strict"`,
+preserving `steps=...` if supplied and all other startup options. Use the same scoped
+Agent Key and the same schema definitions you exported. Strict comparisons use the
+complete input/output schema objects. Do not automatically retry with
+`overwrite` or a stronger key. If another owner updates the registration during
+review, reload and review against the latest saved version.
+
 ## Hosted execution contract
 
 Every check sends `execution_mode: "hosted"`. The runtime must return
 `execution_contract: "hosted-v1"`, confirming it rejected unsupported local Rules
 against the same effective Rule snapshot it evaluated. Missing or unknown proof,
 malformed decisions, authentication failures and network failures block checkpoint
-execution. Older runtime versions are deliberately unsupported. There is no fallback
-to local check and no separate check-then-evaluate preflight race in the client.
+execution. There is no fallback to local check and no separate check-then-evaluate
+preflight race in the client.
 
 A pre-stage failure prevents the action. A post-stage failure blocks the returned
 result after the action already ran; it cannot roll back the action. The SDK never
@@ -85,15 +144,6 @@ Extras are `strands-agents`, `google-adk`, `pydantic-ai`, `openai-agents`, and `
 Install only the adapters your application uses. Strands exposes `NormaPlugin` and
 `NormaSteeringHandler`; Google ADK exposes `NormaPlugin`. Finish adapters retain
 completed tool history when asking a model to revise its final answer.
-
-## Migration
-
-Use `import norma`, `NormaClient`, `checkpoint`, and the models in `norma.models`.
-The former compatibility namespace, auth negotiation, local evaluator registration,
-local Rule execution, and administrative authoring APIs have been removed. Existing
-runtime wire compatibility is handled internally; public receipts use Rule and check names.
-Move local Rules to hosted execution before using this SDK. Configure only the two
-connection environment variables above and pass `agent_name` explicitly.
 
 ## Development
 
@@ -131,17 +181,15 @@ Use `evaluate_rules` for initialized session checks and `refresh_rules` or
 `refresh_rules_async` to refresh hosted Rule configuration. Rule exceptions accept
 `rule_id`, `rule_name`, and `check_id`; failed checks expose `check_ids`.
 
-The former decorator and check aliases are removed. Every checkpoint requires
-successful initialization, including its private implementation. An explicit blocked
-runtime decision remains blocked even if its individual results are advisory.
-Operation receipts expose `decision.allowed`, `decision.checks`, and `rules`; historical
-local snapshots have `status="unsupported"` and no authorable definition.
+Every checkpoint requires successful initialization, including its private
+implementation. An explicit blocked runtime decision remains blocked even if its
+individual results are advisory. Operation receipts expose `decision.allowed`,
+`decision.checks`, and `rules`.
 
-A retained operation's `outcome` records its original policy result. Historical
-error-policy allowances remain readable, but `decision.allowed` is false when a
-check failed. Operations incorporate their retained policy: an explicit allowed
-operation with advisory checks can permit execution even when the older aggregate
-wire score did not. Unexplained contradictions are rejected.
+A retained operation's `outcome` records its original policy result. Operations use
+their retained policy when deriving `decision.allowed`; an explicitly allowed
+operation can remain allowed with advisory checks. Contradictory outcomes are
+rejected.
 
 For the real Google ADK Runner integration, setup and enforcement semantics, see
 [Google ADK](GOOGLE_ADK.md). `make test-google-adk` verifies the installed wheel with

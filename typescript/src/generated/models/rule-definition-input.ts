@@ -5,7 +5,6 @@
  */
 
 import * as z from "zod/v4-mini";
-import { remap as remap$ } from "../lib/primitives.js";
 import { ClosedEnum } from "../types/enums.js";
 import {
   ConditionNodeInput,
@@ -22,16 +21,6 @@ import {
   RuleScope$Outbound,
   RuleScope$outboundSchema,
 } from "./rule-scope.js";
-import {
-  TemplateDefinitionInput,
-  TemplateDefinitionInput$Outbound,
-  TemplateDefinitionInput$outboundSchema,
-} from "./template-definition-input.js";
-import {
-  TemplateValue,
-  TemplateValue$Outbound,
-  TemplateValue$outboundSchema,
-} from "./template-value.js";
 
 /**
  * Where this rule executes
@@ -85,14 +74,6 @@ export type RuleDefinitionInput = {
    * Tags for categorization
    */
   tags?: Array<string> | undefined;
-  /**
-   * Template metadata for template-backed rules
-   */
-  template?: TemplateDefinitionInput | null | undefined;
-  /**
-   * Resolved parameter values for template-backed rules
-   */
-  templateValues?: { [k: string]: TemplateValue } | null | undefined;
 };
 
 /** @internal */
@@ -110,8 +91,6 @@ export type RuleDefinitionInput$Outbound = {
   execution: string;
   scope?: RuleScope$Outbound | undefined;
   tags?: Array<string> | undefined;
-  template?: TemplateDefinitionInput$Outbound | null | undefined;
-  template_values?: { [k: string]: TemplateValue$Outbound } | null | undefined;
 };
 
 /** @internal */
@@ -128,15 +107,6 @@ export const RuleDefinitionInput$outboundSchema: z.ZodMiniType<
     execution: RuleDefinitionInputExecution$outboundSchema,
     scope: z.optional(RuleScope$outboundSchema),
     tags: z.optional(z.array(z.string())),
-    template: z.optional(z.nullable(TemplateDefinitionInput$outboundSchema)),
-    templateValues: z.optional(
-      z.nullable(z.record(z.string(), TemplateValue$outboundSchema)),
-    ),
-  }),
-  z.transform((v) => {
-    return remap$(v, {
-      templateValues: "template_values",
-    });
   }),
 );
 

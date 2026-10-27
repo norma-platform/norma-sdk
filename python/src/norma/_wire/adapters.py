@@ -40,4 +40,8 @@ def decision_from_wire(value: CheckResponse | dict[str, Any]) -> Decision:
         checks=checks,
         execution_contract=response.execution_contract,
         recovery_feedback=feedback_from_wire(response.recovery_feedback),
+        control_contract=response.control_contract,
+        agent_generation=response.agent_generation,
+        control_resolutions=response.control_resolutions,
+        control_evidence=response.control_evidence,
     )

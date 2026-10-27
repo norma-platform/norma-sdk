@@ -30,7 +30,7 @@ const currentClient = new NormaClient();
 currentClient.init({agentName:"app",runtimeUrl:"https://qualification.invalid",agentKey:"synthetic"});
 
 import { checkpoint, RuleViolationError, RuleSteerError, CheckError, NormaAPIError,
-  type StepSchema, type RuleDefinition, type CheckRequest, type DeliveryReceipt } from "norma-sdk";
+  type StepSchema, type RuleDefinition, type Rule, type CheckRequest, type DeliveryReceipt } from "norma-sdk";
 const registeredStep: StepSchema = { name: "lookup", type: "tool", inputSchema: { type: "object" } };
 currentClient.agents.register({ agent: { agentName: "migration" }, steps: [registeredStep] });
 const check: CheckRequest = { stage: "pre", step: { name: "lookup", type: "tool", input: {} } };
@@ -58,6 +58,14 @@ currentClient.check;
 currentClient.ruleBindings;
 currentClient.agents.listRules;
 const definitionType: RuleDefinition = {execution: "server", action: {decision: "deny"}, condition: {selector: {path: "input"}, evaluator: {name: "json", config: {}}}};
+const ruleStatus: Rule["status"] = "unsupported";
+// @ts-expect-error Generic rule templates are not part of the public Rule contract.
+const templatedDefinition: RuleDefinition = { ...definitionType, template: {} };
+// @ts-expect-error Generic template parameter values are not part of RuleDefinition.
+const templateValuesDefinition: RuleDefinition = { ...definitionType, templateValues: {} };
+// @ts-expect-error Shared parameter binding metadata is not part of RuleDefinition.
+const parameterBoundDefinition: RuleDefinition = { ...definitionType, parameters: {} };
+void [ruleStatus, templatedDefinition, templateValuesDefinition, parameterBoundDefinition];
 // @ts-expect-error Hosted rule authoring cannot select local execution.
 definitionType.execution = "sdk";
 currentClient.checks.check(check).then(decision => {

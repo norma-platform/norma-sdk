@@ -5,7 +5,6 @@
  */
 
 import * as z from "zod/v4-mini";
-import { remap as remap$ } from "../lib/primitives.js";
 import { safeParse } from "../lib/schemas.js";
 import * as openEnums from "../types/enums.js";
 import { OpenEnum } from "../types/enums.js";
@@ -21,14 +20,6 @@ import {
 } from "./rule-action.js";
 import { RuleScope, RuleScope$inboundSchema } from "./rule-scope.js";
 import { SDKValidationError } from "./errors/sdk-validation-error.js";
-import {
-  TemplateDefinitionOutput,
-  TemplateDefinitionOutput$inboundSchema,
-} from "./template-definition-output.js";
-import {
-  TemplateValue,
-  TemplateValue$inboundSchema,
-} from "./template-value.js";
 
 /**
  * Where this rule executes
@@ -63,10 +54,6 @@ export type RuleDefinitionOutput = {
    * Detailed description of the rule
    */
   description?: string | null | undefined;
-  /**
-   * Whether this rule is active
-   */
-  parameters?: Record<string, unknown> | null;
   mode?: "enforce" | "observe";
   enabled: boolean;
   /**
@@ -81,14 +68,6 @@ export type RuleDefinitionOutput = {
    * Tags for categorization
    */
   tags?: Array<string> | undefined;
-  /**
-   * Template metadata for template-backed rules
-   */
-  template?: TemplateDefinitionOutput | null | undefined;
-  /**
-   * Resolved parameter values for template-backed rules
-   */
-  templateValues?: { [k: string]: TemplateValue } | null | undefined;
 };
 
 /** @internal */
@@ -104,22 +83,13 @@ export const RuleDefinitionOutput$inboundSchema: z.ZodMiniType<
     action: RuleAction$inboundSchema,
     condition: ConditionNodeOutput$inboundSchema,
     description: z.optional(z.nullable(types.string())),
-    parameters: z.optional(z.nullable(z.record(z.string(), z.unknown()))),
     mode: z.optional(z.enum(["enforce", "observe"])),
     enabled: z._default(types.boolean(), true),
     execution: Execution$inboundSchema,
     scope: types.optional(RuleScope$inboundSchema),
     tags: types.optional(z.array(types.string())),
-    template: z.optional(z.nullable(TemplateDefinitionOutput$inboundSchema)),
-    template_values: z.optional(
-      z.nullable(z.record(z.string(), TemplateValue$inboundSchema)),
-    ),
   }),
-  z.transform((v) => {
-    return remap$(v, {
-      "template_values": "templateValues",
-    });
-  }),
+  z.transform((value) => value as RuleDefinitionOutput),
 );
 
 export function ruleDefinitionOutputFromJSON(

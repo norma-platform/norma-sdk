@@ -13,15 +13,12 @@ from .validation import ensure_agent_name
 
 def _agent_rules_query_params(
     *,
-    rendered_state: Literal["rendered", "unrendered", "all"] | None = None,
     enabled_state: Literal["enabled", "disabled", "all"] | None = None,
     target_type: str | None = None,
     target_id: str | None = None,
 ) -> dict[str, str] | None:
     """Build optional query params for the Rules endpoint."""
     params: dict[str, str] = {}
-    if rendered_state is not None:
-        params["rendered_state"] = rendered_state
     if enabled_state is not None:
         params["enabled_state"] = enabled_state
     if target_type is not None:
@@ -107,7 +104,6 @@ async def _list_agent_rules(
     client: NormaClient,
     agent_name: str,
     *,
-    rendered_state: Literal["rendered", "unrendered", "all"] | None = None,
     enabled_state: Literal["enabled", "disabled", "all"] | None = None,
     target_type: str | None = None,
     target_id: str | None = None,
@@ -115,11 +111,8 @@ async def _list_agent_rules(
     """List effective Rules for an agent.
 
     When state filters are omitted, the server returns all effective Rules,
-    including rendered Rules, disabled Rules, and unrendered template
-    drafts. Callers can narrow that view by passing rendered_state and/or
-    enabled_state. Filters intersect, so unrendered drafts require
-    rendered_state="unrendered" together with enabled_state="all" or
-    enabled_state="disabled".
+    including enabled and disabled Rules. Callers can narrow that view by
+    passing enabled_state.
 
     When ``target_type`` and ``target_id`` are both supplied, the server
     merges Rules bound to that target into the returned set. The two
@@ -129,7 +122,6 @@ async def _list_agent_rules(
         raise ValueError("target_type and target_id must be supplied together.")
     normalized_name = ensure_agent_name(agent_name)
     params = _agent_rules_query_params(
-        rendered_state=rendered_state,
         enabled_state=enabled_state,
         target_type=target_type,
         target_id=target_id,
@@ -149,23 +141,19 @@ async def list_agent_rules_typed(
     client: NormaClient,
     agent_name: str,
     *,
-    rendered_state: Literal["rendered", "unrendered", "all"] | None = None,
     enabled_state: Literal["enabled", "disabled", "all"] | None = None,
     target_type: str | None = None,
     target_id: str | None = None,
 ) -> AgentRulesResponse:
     """List effective Rules for an agent with a typed response.
 
-    Filters intersect, so unrendered drafts require rendered_state="unrendered"
-    together with enabled_state="all" or enabled_state="disabled". When
-    ``target_type`` and ``target_id`` are both supplied, the server merges
+    When ``target_type`` and ``target_id`` are both supplied, the server merges
     Rules bound to that target into the returned set.
     """
     if (target_type is None) != (target_id is None):
         raise ValueError("target_type and target_id must be supplied together.")
     normalized_name = ensure_agent_name(agent_name)
     params = _agent_rules_query_params(
-        rendered_state=rendered_state,
         enabled_state=enabled_state,
         target_type=target_type,
         target_id=target_id,
@@ -188,7 +176,7 @@ def _public_rules(data: dict[str, Any]) -> AgentRulesResponse:
         if definition.get("execution") == "sdk":
             status = "unsupported"
         elif definition.get("condition") is None or definition.get("action") is None:
-            status = "unrendered"
+            status = "unsupported"
         else:
             status = "hosted"
         rules.append(
@@ -199,7 +187,12 @@ def _public_rules(data: dict[str, Any]) -> AgentRulesResponse:
                 "definition": definition if status == "hosted" else None,
             }
         )
-    return AgentRulesResponse.model_validate({"rules": rules})
+    controls = {
+        name: data[name]
+        for name in ("control_contract", "agent_generation", "control_resolutions")
+        if name in data
+    }
+    return AgentRulesResponse.model_validate({"rules": rules, **controls})
 
 
 async def list_agent_rules(client: NormaClient, agent_name: str) -> AgentRulesResponse:
@@ -221,6 +214,10 @@ async def register_agent(
         client, agent, steps, conflict_mode, target_type=target_type, target_id=target_id
     )
     result = dict(data)
-    result.pop("rules", None)
-    result.update(_public_rules(data).model_dump(mode="json"))
+    projection = _public_rules(data)
+    result["rules"] = [rule.model_dump(mode="json") for rule in projection.rules]
+    for name in ("control_contract", "agent_generation", "control_resolutions"):
+        value = getattr(projection, name)
+        if value is not None:
+            result[name] = value
     return result

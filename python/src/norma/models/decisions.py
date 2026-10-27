@@ -6,6 +6,7 @@ from typing import Self
 from pydantic import Field, model_validator
 
 from .base import BaseModel
+from .control_evidence import ControlEvidenceSnapshot, ControlReceipt
 from .recovery_feedback import RecoveryFeedback
 from .rules import RuleMatch
 
@@ -23,6 +24,14 @@ class Decision(BaseModel):
     checks: list[RuleMatch] = Field(default_factory=list)
     execution_contract: str | None = None
     recovery_feedback: list[RecoveryFeedback] | None = None
+    control_contract: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    agent_generation: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    control_resolutions: list[ControlReceipt] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    control_evidence: list[ControlEvidenceSnapshot] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def _block_failed_checks(self) -> Self:

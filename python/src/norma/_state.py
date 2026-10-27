@@ -9,6 +9,8 @@ the same state object.
 
 from typing import TYPE_CHECKING, Any
 
+from .control_contract import ControlContract
+
 if TYPE_CHECKING:
     from norma.models import Agent
 
@@ -28,6 +30,7 @@ class _StateContainer:
         self.server_url: str | None = None
         self.api_key: str | None = None
         self.api_key_header: str | None = None
+        self.control_contract: ControlContract | None = None
         # Optional target context fixed at init() time; both fields are set
         # together or both remain None.
         self.target_type: str | None = None

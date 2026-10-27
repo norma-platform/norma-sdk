@@ -29,4 +29,4 @@ Record the reviewed file selection in `EXPORT_MANIFEST.json` as a `files` array 
 
 No publication, repository visibility change, transfer, deployment, or package release is part of preparing this export.
 
-Internal wire adapters are shipped source. They use the native runtime contract; application code should use the supported models. Raw HTTP diagnostics may include caller payloads and require careful logging. See [protocol visibility](docs/migration.md#protocol-visibility).
+Internal wire adapters are shipped source. They use the native runtime contract; application code should use the supported models. Raw HTTP diagnostics may include caller payloads and require careful logging. See the [Python API guide](python/README.md), [TypeScript API guide](typescript/README.md), and [workspace tenancy guidance](docs/tenancy.md).

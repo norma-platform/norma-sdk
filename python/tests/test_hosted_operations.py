@@ -73,6 +73,57 @@ async def test_historical_receipts_are_read_without_claiming_hosted_admission() 
     assert record.request.error_policy == "allow"
 
 
+async def test_opted_in_operation_read_preserves_frozen_control_receipt() -> None:
+    receipt = _receipt(hosted=True)
+    receipt["control_contract"] = "rule-controls-v1"
+    receipt["agent_generation"] = "generation-1"
+    receipt["decision"]["check"].update(
+        {
+            "control_contract": "rule-controls-v1",
+            "agent_generation": "generation-1",
+            "control_resolutions": [
+                {
+                    "contract": "rule-controls-v1",
+                    "capabilities_fingerprint": "a" * 64,
+                    "declaration_fingerprint": "b" * 64,
+                    "defaults": {"age": 90},
+                    "effective_values": {"age": 120},
+                    "values_fingerprint": "c" * 64,
+                    "value_sources": {"age": "agent_override"},
+                    "references": [],
+                    "overridden_keys": ["age"],
+                    "agent_generation": "generation-1",
+                    "agent_name": "hosted-agent",
+                    "rule_id": 7,
+                    "rule_version": 3,
+                    "override_revision": 4,
+                    "effective_fingerprint": "d" * 64,
+                }
+            ],
+        }
+    )
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json=receipt,
+            headers={"X-Norma-Control-Contract": "rule-controls-v1"},
+        )
+
+    async with NormaClient(
+        control_contract="rule-controls-v1",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        record = await operations.get(client, "operation-1", agent_name="hosted-agent")
+
+    assert len(seen) == 1
+    assert seen[0].headers["X-Norma-Control-Contract"] == "rule-controls-v1"
+    assert record.agent_generation == "generation-1"
+    assert record.decision.control_resolutions[0].effective_values == {"age": 120}
+
+
 @pytest.mark.parametrize("mismatch", ["agent", "proposal", "key", "target"])
 async def test_creation_rejects_unrelated_hosted_receipt(mismatch: str) -> None:
     receipt = _receipt(hosted=True)
@@ -261,13 +312,3 @@ async def test_observed_unresolved_receipt_respects_enforcing_policy_only(mode, 
         else:
             with pytest.raises(RuntimeError, match="retained unresolved policy"):
                 await operations.get(client, "operation-1", agent_name="hosted-agent")
-
-
-def test_published_parameter_snapshot_is_preserved_without_instrumentation_changes():
-    from norma.models.parameter_binding import ParameterBinding, parameter_fingerprint
-    from norma.models.rules import RuleDefinition
-    binding = ParameterBinding(set="documents", revision=1, schema_fingerprint="a" * 64,
-        values={"max_words": 100}, values_fingerprint=parameter_fingerprint({"max_words": 100}))
-    definition = RuleDefinition.model_validate({"execution": "server", "condition": {},
-        "action": {"decision": "deny"}, "parameters": binding.model_dump(mode="json")})
-    assert definition.model_dump(mode="json")["parameters"] == binding.model_dump(mode="json")

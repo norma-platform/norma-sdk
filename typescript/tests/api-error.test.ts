@@ -21,6 +21,36 @@ function expectSafe(error: NormaAPIError): void {
 }
 
 describe("Norma API errors", () => {
+  it.each(["RULE_TEMPLATE_CONFLICT", "TEMPLATE_PARAMETER_INVALID", "TEMPLATE_RENDER_ERROR"])(
+    "does not recognize retired template diagnostic %s",
+    (errorCode) => {
+      const error = NormaAPIError.fromResponse(new Response(null, { status: 409 }), {
+        error_code: errorCode,
+      });
+      expect(error.code).toBe("NORMA_CONFLICT");
+      expect(error.type).toBe("urn:norma:error:conflict");
+    },
+  );
+
+  it("retains only reviewed control diagnostic codes and source pointers", () => {
+    const error = NormaAPIError.fromResponse(new Response(null, { status: 422 }), {
+      error_code: "VALIDATION_ERROR",
+      errors: [
+        { field: "/controls/age/default", code: "control_value_out_of_bounds", message: "raw value 999" },
+        { field: "/controls/age/~2bad", code: "control_reference_invalid" },
+        { field: "/controls/age/default", code: "control_reference_invalid", message: "synthetic-secret" },
+        { field: "/values", code: "control_evidence_size_exceeded", message: "private capacity detail" },
+        { field: "/controls/age/default", code: "private_code" },
+      ],
+    });
+    expect(error.diagnostics).toEqual([
+      { code: "control_value_out_of_bounds", sourcePointer: "/controls/age/default" },
+      { code: "control_reference_invalid", sourcePointer: "/controls/age/default" },
+      { code: "control_evidence_size_exceeded", sourcePointer: "/values" },
+    ]);
+    expect(`${error.message}${JSON.stringify(error)}`).not.toContain("synthetic-secret");
+    expect(`${error.message}${JSON.stringify(error)}`).not.toContain("private capacity detail");
+  });
   it("normalizes an older runtime denial without changing its HTTP status", () => {
     // Given: a denied response carrying unsafe legacy prose and a forged body status.
     const response = new Response(JSON.stringify(inheritedError), { status: 403 });
@@ -171,5 +201,67 @@ describe("Rule identifiers across server versions", () => {
     const error = NormaAPIError.fromResponse(new Response(null, { status: 404 }), { code });
     expect(error.code).toBe("NORMA_RULE_NOT_FOUND");
     expect(error.type).toBe("urn:norma:error:rule-not-found");
+  });
+});
+
+describe("step schema registration recovery", () => {
+  it.each([
+    "https://norma.invalid/api/v1/agents/register",
+    "https://console.invalid/api/runtime/api/v1/agents/register?agent_name=example",
+  ])("shows the reviewed recovery for a Step schema conflict on %s", (url) => {
+    // Given: the registration route and a recognized Step-specific conflict discriminator.
+    const body = {
+      code: "SCHEMA_INCOMPATIBLE",
+      details: { kind: "Step" },
+      detail: "Step schema conflict for private-step. synthetic-secret",
+      hint: "Private internal prose synthetic-secret",
+    };
+
+    // When: the SDK normalizes the HTTP conflict.
+    const error = NormaAPIError.fromResponse(new Response(null, { status: 409 }), body, url);
+
+    // Then: it provides fixed Console recovery without exposing server-authored prose.
+    expect(error.code).toBe("NORMA_SCHEMA_INCOMPATIBLE");
+    expect(error.toJSON().title).toBe("Step schema conflict");
+    expect(error.hint).toContain("Console → Agents → agent → Connection → Edit step schemas → Import schemas");
+    expect(error.hint).toContain('conflictMode: "strict"');
+    expectSafe(error);
+  });
+
+  it("recognizes the Step schema mismatch error shape only on agent registration", () => {
+    // Given: a direct registration response with the server's validation discriminator.
+    const body = {
+      error_code: "SCHEMA_INCOMPATIBLE",
+      errors: [{ resource: "Step", code: "schema_mismatch", message: "synthetic-secret" }],
+    };
+
+    // When: parsing the known registration endpoint.
+    const error = NormaAPIError.fromResponse(
+      new Response(null, { status: 409 }),
+      body,
+      "https://norma.invalid/api/v1/agents/register"
+    );
+
+    // Then: the specific recovery is selected without copying the error message.
+    expect(error.toJSON().title).toBe("Step schema conflict");
+    expect(error.hint).toContain("Import schemas");
+    expectSafe(error);
+  });
+
+  it.each([
+    ["https://norma.invalid/api/v1/rule-reviews", { detail: "Step schema conflict for review" }],
+    ["https://norma.invalid/api/v1/agents/register", { detail: "Evaluator schema mismatch" }],
+    ["https://norma.invalid/api/v1/agents/register", { details: { kind: "Evaluator" } }],
+  ])("keeps unrelated SCHEMA_INCOMPATIBLE conflicts generic", (url, discriminator) => {
+    // Given: a schema conflict without an accepted Step registration discriminator.
+    const body = { code: "SCHEMA_INCOMPATIBLE", ...discriminator, hint: "synthetic-secret" };
+
+    // When: normalizing the response.
+    const error = NormaAPIError.fromResponse(new Response(null, { status: 409 }), body, url);
+
+    // Then: callers get the safe generic conflict guidance.
+    expect(error.toJSON().title).toBe("Configuration conflict");
+    expect(error.hint).toBe("Review the existing configuration before retrying.");
+    expectSafe(error);
   });
 });

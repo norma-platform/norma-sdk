@@ -3,6 +3,12 @@
 
 from .actions import ActionDecision, normalize_action
 from .agent import Agent, JSONObject, JSONValue, Step, StepSchema
+from .control_evidence import (
+    ControlEvidenceSnapshot,
+    ControlReceipt,
+    ControlReferenceEvidence,
+    NumericComparisonEvidence,
+)
 from .decisions import Decision
 from .observability import BatchEventsResponse, RuleCheckEvent
 from .operations import (
@@ -20,6 +26,7 @@ from .rules import (
     RuleScope,
     SteeringContext,
 )
+from .server import AgentRulesResponse, RuleRecord
 from .turn import (
     ActionSummary,
     ContinuationState,
@@ -35,8 +42,13 @@ __all__ = [
     "ActionSummary",
     "AddOperationObservationRequest",
     "Agent",
+    "AgentRulesResponse",
     "BatchEventsResponse",
     "ContinuationState",
+    "ControlEvidenceSnapshot",
+    "ControlReceipt",
+    "ControlReferenceEvidence",
+    "NumericComparisonEvidence",
     "CreateOperationRequest",
     "EvaluatorResult",
     "FinishFinding",
@@ -49,6 +61,7 @@ __all__ = [
     "RecoveryFeedback",
     "RecoveryReason",
     "RuleDefinition",
+    "RuleRecord",
     "RuleAction",
     "RuleScope",
     "RuleMatch",
