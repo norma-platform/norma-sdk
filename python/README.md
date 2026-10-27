@@ -15,7 +15,7 @@ export NORMA_RUNTIME_URL="https://your-runtime.example/api/runtime"
 export NORMA_AGENT_KEY="your-scoped-agent-key"
 ```
 
-The alpha download endpoint becomes available with deployment; it is not live yet.
+The alpha download endpoint is live.
 
 Use the exact runtime URL and scoped key issued by Console. HTTPS is required,
 except for loopback development. Agent identity is an explicit argument and is
