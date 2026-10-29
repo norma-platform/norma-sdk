@@ -339,7 +339,7 @@ def validate_authored_controls(
     references, marker_error = _references(document)
     if marker_error:
         diagnostics.append(marker_error)
-    if ("controls" in document or references) and document.get("execution") != "server":
+    if ("controls" in document or references) and document.get("execution", "server") != "server":
         diagnostics.append(
             _diag(
                 "control_execution_unsupported",
@@ -684,16 +684,20 @@ def _evaluators(document: Mapping[str, object]) -> list[_Evaluator]:
         if depth > _MAX_DEPTH or not isinstance(node, Mapping):
             return
         composite = [key for key in ("and", "or", "not") if key in node]
-        if "selector" in node and "evaluator" in node and not composite:
-            evaluator = node.get("evaluator")
+        evaluator = node.get("evaluator")
+        implicit_selector = isinstance(evaluator, Mapping) and evaluator.get("name") in (
+            "semantic", "finish_claims"
+        )
+        if ("selector" in node or implicit_selector) and "evaluator" in node and not composite:
             if (
                 isinstance(evaluator, Mapping)
                 and isinstance(evaluator.get("name"), str)
                 and isinstance(evaluator.get("config"), Mapping)
             ):
-                found.append(
-                    _Evaluator(pointer + "/evaluator", evaluator["name"], evaluator["config"])
-                )
+                config = evaluator["config"]
+                if evaluator["name"] == "semantic":
+                    config = _semantic_config_view(config)
+                found.append(_Evaluator(pointer + "/evaluator", evaluator["name"], config))
             return
         if len(composite) != 1 or "selector" in node or "evaluator" in node:
             return
@@ -708,6 +712,37 @@ def _evaluators(document: Mapping[str, object]) -> list[_Evaluator]:
     for root_node, pointer in roots:
         visit(root_node, pointer, 0)
     return found
+
+
+def _semantic_config_view(config: Mapping[str, object]) -> Mapping[str, object]:
+    """Resolve omitted decision tags for predicates without rewriting authored JSON."""
+    questions = config.get("questions")
+    decision = config.get("decision")
+    if not isinstance(questions, list) or not isinstance(decision, Mapping):
+        return config
+    rules = decision.get("rules")
+    if not isinstance(rules, list):
+        return config
+    question_types: dict[str, str | None] = {}
+    for question in questions:
+        if not isinstance(question, Mapping) or not isinstance(question.get("id"), str):
+            continue
+        identifier = question["id"]
+        kind = question.get("type")
+        question_types[identifier] = (
+            kind if identifier not in question_types and kind in ("statement", "choice", "score")
+            else None
+        )
+    normalized: list[object] = []
+    for rule in rules:
+        if isinstance(rule, Mapping) and "type" not in rule:
+            question_id = rule.get("question_id")
+            kind = question_types.get(question_id) if isinstance(question_id, str) else None
+            if kind:
+                normalized.append({**rule, "type": kind})
+                continue
+        normalized.append(rule)
+    return {**config, "decision": {**decision, "rules": normalized}}
 
 
 def _check_reference(

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { checkFinish, HTTPClient, NormaClient, validateAuthoredControls } from "norma-sdk";
+import { checkFinish, HTTPClient, NormaClient, semanticDefinition, validateAuthoredControls } from "norma-sdk";
 
 const receipt = {
   contract: "rule-controls-v1", capabilities_fingerprint: "a".repeat(64),
@@ -12,7 +12,7 @@ const receipt = {
   overridden_keys: ["age"], agent_generation: "generation-1", agent_name: "controls-agent",
   rule_id: 7, rule_version: 3, override_revision: 4, effective_fingerprint: "d".repeat(64),
 };
-const authored = JSON.stringify({ execution: "server", action: { decision: "deny" },
+const authored = JSON.stringify({ action: { decision: "deny" },
   condition: { selector: { path: "output" }, evaluator: { name: "json",
     config: { field_constraints: { age: { min: { $param: "age" } } } } } },
   controls: { age: { type: "number", label: "Age", default: 18, minimum: 0, maximum: 100, integer: true } } });
@@ -28,6 +28,17 @@ const admitted = validateAuthoredControls(authored, capabilities);
 assert.equal(admitted.status, "requires_server_validation");
 assert.equal(admitted.references[0]?.key, "age");
 assert.equal(admitted.references[0]?.destinationPointer, "/condition/evaluator/config/field_constraints/age/min");
+assert.equal(Object.hasOwn(admitted.authoredDocument, "execution"), false);
+const compactSemantic = semanticDefinition({
+  bindings: [{ name: "input", path: "input", required: false }],
+  questions: [{ id: "q", type: "statement", instructions: "Assess support",
+    criteria: { true: "Supported", false: "Unsupported" } }],
+  decision: { on_unresolved: "deny", rules: [{ question_id: "q", threshold: 0.8 }] },
+});
+assert.equal(Object.hasOwn(compactSemantic, "definition_id"), false);
+assert.equal(Object.hasOwn(compactSemantic, "check_release"), false);
+assert.equal(compactSemantic.decision.rules[0].type, "statement");
+assert.equal(compactSemantic.bindings[0].required, false);
 
 const operation = JSON.parse(await readFile(new URL("./receipt.json", import.meta.url), "utf8"));
 operation.agent_name = "controls-agent";

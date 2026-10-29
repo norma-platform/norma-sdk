@@ -3,12 +3,12 @@
 A typed client for the hosted Norma runtime. Requires Node.js 20 or later.
 
 ```sh
-npm install --ignore-scripts 'https://norma-platform.cloud/artifacts/norma-sdk-4.0.0-dev.1.tgz'
+npm install --ignore-scripts 'https://norma-platform.cloud/artifacts/norma-sdk-4.0.0-dev.2.tgz'
 export NORMA_RUNTIME_URL=https://your-tenant.example/api/runtime
 export NORMA_AGENT_KEY=your-agent-key
 ```
 
-The alpha SDK is `norma-sdk@4.0.0-dev.1`. The download endpoint is live.
+The alpha SDK is `norma-sdk@4.0.0-dev.2`.
 This package has not been published to a registry.
 
 Use the runtime URL from your Norma connection settings, including its path prefix. The Agent Key is sent in `X-API-Key`. HTTPS is required except for loopback development. Redirects are rejected. There is no auth-mode or tenant-ID setting.
@@ -122,19 +122,28 @@ fetch current state again. A new invocation captures new values. Generic tool ar
 `step.input.args`. State adds no SDK environment variables,
 global current-user value, or required metadata/schema registration.
 
-In the Console, a Rego condition can select the whole checkpoint with an explicit
-input view. The existing Rule action determines what a match does:
+In Console, this rule denies a reservation when its quantity exceeds the observed
+availability. Rego still needs a selector; here it selects the whole checkpoint
+with an explicit input view:
 
 ```json
 {
-  "selector": {"path": "*"},
-  "evaluator": {
-    "name": "rego",
-    "config": {
-      "input_view": "checkpoint-v1",
-      "query": "input.args[1] > input.state.order.available"
+  "scope": {
+    "step_types": ["tool"],
+    "step_name_regex": "^reserve_inventory$",
+    "stages": ["pre"]
+  },
+  "condition": {
+    "selector": {"path": "*"},
+    "evaluator": {
+      "name": "rego",
+      "config": {
+        "input_view": "checkpoint-v1",
+        "query": "input.args[1] > input.state.order.available"
+      }
     }
-  }
+  },
+  "action": {"decision": "deny"}
 }
 ```
 
@@ -185,7 +194,61 @@ Licensed under Apache-2.0. Preserve `LICENSE` and `THIRD_PARTY_NOTICES` when red
 
 Use `client.agents.listRules({ agentName })`, `client.ruleBindings.list({ ruleId })`, and `client.checks.check(...)`. A `Decision` contains `allowed`, `reason`, and `checks`; each check carries `ruleId`, `ruleName`, `checkId`, `status`, and its result. There is no public raw check escape hatch. Errors expose Rule and check identifiers only.
 
-Operation receipts expose `rules` and a normalized `decision` (including the retained `outcome`). A historical unsupported rule remains visible with `status: "unsupported"` and a null definition; it cannot become an authorable hosted `RuleDefinition`. New operations still reject unsupported rule snapshots. Hosted definitions require `execution: "server"`.
+Operation receipts expose `rules` and a normalized `decision` (including the retained `outcome`). A historical unsupported rule remains visible with `status: "unsupported"` and a null definition; it cannot become an authorable hosted `RuleDefinition`. New operations still reject unsupported rule snapshots. Authored definitions default to hosted execution; an explicit execution value must be `"server"`.
+
+In `4.0.0-dev.2`, `semanticDefinition()` accepts compact semantic configuration: identity and managed release may be omitted for the server to assign, and each decision rule can infer its `type` from the referenced question. Explicit release pins, identity, evidence requirements, thresholds, and uncertainty policies are preserved. Canonical runtime responses retain their recorded metadata.
+
+### Compact semantic configuration
+
+**Version compatibility:** `4.0.0-dev.2` supports the compact example below. The
+older `4.0.0-dev.1` download requires `definition_id`, `check_release` and each
+decision rule's `type` in `semanticDefinition()`. Retain those explicit fields when
+using that older helper. Its control helper also requires explicit
+`execution: "server"`; see the [controls guide](../docs/controls.md).
+
+The helper validates configuration locally; it does not call a model, save a rule,
+or attach it to an agent. Pass its result as the semantic evaluator's `config`
+when preparing a rule in Console:
+
+```ts
+import { semanticDefinition } from "norma-sdk";
+
+const config = semanticDefinition({
+  bindings: [{ name: "message", path: "input.message" }],
+  questions: [{
+    id: "unsupported_promise",
+    type: "statement",
+    instructions: "Does the message promise an outcome without supporting evidence?",
+    criteria: {
+      true: "The message makes an unsupported promise.",
+      false: "The message makes no unsupported promise.",
+    },
+  }],
+  decision: {
+    on_unresolved: "deny",
+    rules: [{ question_id: "unsupported_promise", threshold: 0.8 }],
+  },
+});
+```
+
+Question `type` remains required for statement, choice and score questions;
+decision rules infer their type from `question_id`. New configuration can omit
+`schema_version`, `definition_id`, `definition_version`, empty `examples`, and
+default binding or decision settings. Keep nonempty reference examples and all
+nondefault settings, including optional bindings (`required: false`), `any`,
+`at_most`, score ranges and confidence/probability thresholds. An omitted
+`required_origin` means caller-supplied evidence. The current resolver cannot
+supply `runtime_observed` or `source_verified`; existing stronger requirements
+are retained rather than silently weakened.
+
+A complete rule wraps the evaluator in `condition`. Semantic and finish
+conditions omit `selector` because they consume the complete Step; bindings
+select semantic evidence. Rego and other selected-value evaluators still require
+a selector. Default Rego profile and balanced finish strictness can be omitted;
+nondefault strictness remains meaningful. Authored `execution` is also optional
+and defaults to `"server"`; SDK-local evaluation is unsupported. The hosted
+`execution_mode`/`execution_contract` proof described above remains required on
+check requests and responses.
 
 This version uses native Rules/Checks routes and fields throughout. Semantic authoring uses statement, choice, and score forms; alternate authoring vocabularies and runtime conversion helpers are removed. Statement answers use `type: "statement"` and `support_score`. Caller-owned payloads and evidence are preserved without recursively renaming their keys.
 

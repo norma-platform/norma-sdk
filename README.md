@@ -16,6 +16,10 @@ Pass the registered agent name explicitly to the client operation. An agent name
 
 These packages call the hosted service. They contain no local evaluation engine, service launcher, database migration commands, deployment tools, or account administration CLI. Native host-hook installation is a separate integration, not part of these SDKs.
 
+Create and attach rules in Console using compact rule JSON. Server execution is implicit, and a rule's selectors and evaluators belong inside `condition`. Omit redundant defaults while retaining thresholds, scope, actions and other settings that change behavior. See the [control authoring example](docs/controls.md) and the [TypeScript semantic configuration helper](typescript/README.md#compact-semantic-configuration). Historical expanded definitions remain readable; runtime responses can include metadata and defaults that authors do not need to repeat.
+
+Python `8.7.1.dev4` and TypeScript `4.0.0-dev.2` include compact authoring-helper support. Older downloads retain their original helper requirements; follow the version notes in the language guides. Compact Console JSON does not require those helpers.
+
 Use environment variables or your application's secret manager for credentials. Never commit an Agent Key. API checks can consume the workspace's configured allowance; a successful HTTP response alone does not establish that a proposed action was permitted. Read the returned check result before executing the action.
 
 Package installation and method examples are maintained in each language guide. Repository availability does not establish registry publication or ownership of a package name.

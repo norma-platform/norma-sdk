@@ -2,9 +2,11 @@
 
 The Python and TypeScript SDKs export pure helpers for inspecting authored Console rule controls before sending a rule to Norma. The server remains authoritative: the helper never prepares or publishes a rule, resolves an agent override, or decides whether a request is safe to save.
 
+**Download compatibility:** Python `8.7.1.dev4` and TypeScript `4.0.0-dev.2` accept omitted `execution`. Older Python `8.7.1.dev3` and TypeScript `4.0.0-dev.1` downloads require `"execution": "server"` in documents passed to their local control helpers. Preserve that explicit field when using those older versions. The compact Console example below is valid for server preparation and does not require local helper validation.
+
 Both languages expose `validate_authored_controls` / `validateAuthoredControls`. Pass raw JSON text when possible so the helper can reject duplicate keys, invalid Unicode, non-finite numbers, and oversized or overly deep sources. Parsed-object input is copied and checked as plain JSON data, but reports `source_validation="unavailable"` because duplicate keys and original number spellings are already lost.
 
-Pass the trusted `rule-controls-v1` capability projection explicitly. A capability is never inferred from fields authored in the rule. A known protected destination or invalid declaration returns `status="invalid"`; unavailable manifests, unknown structural operators, uncertain parsed-source admission, or destinations requiring full validation return `status="requires_server_validation"`. Only a fully checked local result returns `status="valid"`. Every control declaration needs a valid default, and control references require `execution="server"`.
+Pass the trusted `rule-controls-v1` capability projection explicitly. A capability is never inferred from fields authored in the rule. A known protected destination or invalid declaration returns `status="invalid"`; unavailable manifests, unknown structural operators, uncertain parsed-source admission, or destinations requiring full validation return `status="requires_server_validation"`. Only a fully checked local result returns `status="valid"`. Every control declaration needs a valid default. Rules with control references use server execution by default; omit `execution`, or use `"server"` when reading or preserving an explicit value. Other execution values are rejected.
 
 The result carries bounded diagnostics with RFC 6901 source pointers, a recursively immutable authored-document copy, and typed reference pointers. Capability slots expose expected-value constraints, but complete evaluator configuration, cross-field, provider, regex, and runtime checks still belong to server preparation. A local `valid` result is an authoring aid, not a server preparation receipt or a release/impact assessment.
 
@@ -36,18 +38,19 @@ Create and publish the rule in Console. The declaration owns the shared default;
 
 ```json
 {
-  "execution": "server",
   "enabled": true,
   "action": { "decision": "deny" },
   "scope": { "step_types": ["llm"], "stages": ["pre"] },
-  "selector": { "path": "input" },
-  "evaluator": {
-    "name": "json",
-    "config": {
-      "required_fields": ["age_days"],
-      "field_types": { "age_days": "number" },
-      "field_constraints": {
-        "age_days": { "min": { "$param": "minimum_age_days" } }
+  "condition": {
+    "selector": { "path": "input" },
+    "evaluator": {
+      "name": "json",
+      "config": {
+        "required_fields": ["age_days"],
+        "field_types": { "age_days": "number" },
+        "field_constraints": {
+          "age_days": { "min": { "$param": "minimum_age_days" } }
+        }
       }
     }
   },
@@ -62,6 +65,8 @@ Create and publish the rule in Console. The declaration owns the shared default;
   }
 }
 ```
+
+Put leaf selectors and evaluators inside `condition`; the root-level spelling is retained only for historical reads. JSON, Rego, regex and other selected-value evaluators still need their selectors. Semantic and finish evaluators consume the complete Step and omit that selector; semantic `bindings[].path` chooses the evidence. Control declarations, `$param` references, bounds, and nondefault evaluator settings remain explicit because they change the effective rule.
 
 Set the agent override in Console's **Configure controls** editor. The client opts into `rule-controls-v1` to require both the response header and response envelope before accepting control receipts. Opt-in does not create or update control values; control management remains in Console. Omitting the option preserves the legacy client projection.
 

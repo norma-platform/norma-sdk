@@ -1,5 +1,6 @@
 // Modified for Norma.
 import { copyCheckpointArguments } from "./checkpoint-arguments";
+import { inferSemanticDecisionTypes } from "./internal/semantic-authoring";
 import type { JsonObject, JsonValue } from "./types";
 
 export type ControlType = "number" | "boolean" | "string" | "enum" | "string_list";
@@ -329,7 +330,8 @@ export function validateAuthoredControls(
 
   const { references, malformed } = findReferences(document);
   if (malformed) diagnostics.push(malformed);
-  if ((Object.hasOwn(document, "controls") || references.length > 0) && document.execution !== "server") {
+  if ((Object.hasOwn(document, "controls") || references.length > 0) &&
+      Object.hasOwn(document, "execution") && document.execution !== "server") {
     diagnostics.push(diag("control_execution_unsupported", "/execution", "Authored controls require server execution."));
   }
   if (references.length > maxReferences) diagnostics.push(diag("control_declaration_invalid", "/", "At most 256 control references are supported."));
@@ -546,10 +548,13 @@ function findEvaluators(document: Record<string, JsonValue>): Evaluator[] {
   const visit = (node: JsonValue, pointer: string, depth: number): void => {
     if (depth > maxDepth || !isRecord(node)) return;
     const composites = ["and", "or", "not"].filter((key) => Object.hasOwn(node, key));
-    if (Object.hasOwn(node, "selector") && Object.hasOwn(node, "evaluator") && composites.length === 0) {
-      const evaluator = node.evaluator;
+    const evaluator = node.evaluator;
+    const implicitSelector = isRecord(evaluator) &&
+      (evaluator.name === "semantic" || evaluator.name === "finish_claims");
+    if ((Object.hasOwn(node, "selector") || implicitSelector) && Object.hasOwn(node, "evaluator") && composites.length === 0) {
       if (isRecord(evaluator) && typeof evaluator.name === "string" && isRecord(evaluator.config)) {
-        output.push({ pointer: `${pointer}/evaluator`, name: evaluator.name, config: evaluator.config });
+        const config = evaluator.name === "semantic" ? inferSemanticDecisionTypes(evaluator.config) : evaluator.config;
+        output.push({ pointer: `${pointer}/evaluator`, name: evaluator.name, config });
       }
       return;
     }

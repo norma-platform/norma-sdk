@@ -15,7 +15,7 @@ export interface RuleCondition {
 }
 export interface RuleDefinition {
   mode?: "enforce" | "observe";
-  execution: "server"; enabled?: boolean; action: RuleAction; condition: RuleCondition;
+  execution?: "server"; enabled?: boolean; action: RuleAction; condition: RuleCondition;
   description?: string | null; scope?: RuleScope; tags?: string[];
 }
 /** Hosted Rules are available; unsupported definitions remain visible without becoming authorable. */
