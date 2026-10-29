@@ -7,10 +7,10 @@ local evaluator plugins, runtime service, deployment code or management console.
 
 ## Install and configure
 
-Requires Python 3.12+. The SDK version is `norma-sdk==8.7.1.dev3`. Install its wheel:
+Requires Python 3.12+. The SDK version is `norma-sdk==8.7.1.dev4`. Install its wheel:
 
 ```sh
-python -m pip install 'https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev3-py3-none-any.whl'
+python -m pip install 'https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev4-py3-none-any.whl'
 export NORMA_RUNTIME_URL="https://your-runtime.example/api/runtime"
 export NORMA_AGENT_KEY="your-scoped-agent-key"
 ```
@@ -128,6 +128,19 @@ malformed decisions, authentication failures and network failures block checkpoi
 execution. There is no fallback to local check and no separate check-then-evaluate
 preflight race in the client.
 
+These request/response proof fields are distinct from authored rule JSON. A new
+rule omits `execution` because server execution is the default. Console assigns
+semantic identity and version metadata, and semantic decision rules infer their
+type from the referenced question. Keep thresholds, evidence paths, scope,
+actions and other behavior-changing settings explicit. The [controls
+example](../docs/controls.md#author-a-rule-and-inspect-its-frozen-runtime-values)
+uses the current `condition` syntax; historical expanded definitions remain readable.
+Version `8.7.1.dev4` also accepts omitted execution in the local
+`validate_authored_controls` helper. The older `8.7.1.dev3` download accepts
+omitted execution in `RuleDefinition`, but its separate control helper requires
+explicit `"execution": "server"`. Compact rules authored directly in Console do
+not depend on that local helper.
+
 A pre-stage failure prevents the action. A post-stage failure blocks the returned
 result after the action already ran; it cannot roll back the action. The SDK never
 retries the user action. Low-level `checks.check` returns a decision: its caller must
@@ -219,19 +232,28 @@ async def reserve_inventory(quantity: int):
     return await inventory.reserve_atomically(quantity)
 ```
 
-In the Console, a Rego condition can select this whole checkpoint and use the
-explicit checkpoint view. The existing Rule's action decides what a match does:
+In Console, this rule denies a reservation when its quantity exceeds the observed
+availability. Rego still needs a selector; here it selects the complete checkpoint
+and uses the explicit checkpoint view:
 
 ```json
 {
-  "selector": {"path": "*"},
-  "evaluator": {
-    "name": "rego",
-    "config": {
-      "input_view": "checkpoint-v1",
-      "query": "input.args.quantity > input.state.available"
+  "scope": {
+    "step_types": ["tool"],
+    "step_name_regex": "^reserve_inventory$",
+    "stages": ["pre"]
+  },
+  "condition": {
+    "selector": {"path": "*"},
+    "evaluator": {
+      "name": "rego",
+      "config": {
+        "input_view": "checkpoint-v1",
+        "query": "input.args.quantity > input.state.available"
+      }
     }
-  }
+  },
+  "action": {"decision": "deny"}
 }
 ```
 

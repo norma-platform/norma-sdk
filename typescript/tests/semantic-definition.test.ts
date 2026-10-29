@@ -22,6 +22,48 @@ function definition(): NormaSemanticDefinitionInput {
 describe("Norma semantic authoring contract", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
+  it("accepts compact authoring while leaving identity and managed release to the server", () => {
+    // Given: a question supplies its type once; operational policy remains explicit.
+    const compact: NormaSemanticDefinitionInput = {
+      bindings: [{ name: "quote", path: "input.quote", required: false,
+        required_origin: "source_verified", max_chars: 100 }],
+      questions: [{ id: "bounded", type: "statement", instructions: "Are terms bounded?",
+        criteria: { true: "Bounded terms", false: "Unbounded terms" } }],
+      decision: { operator: "any", on_unresolved: "steer", rules: [{
+        question_id: "bounded", threshold: 0.7, match_when: "at_most", ambiguous_band: [0.6, 0.8],
+      }] },
+    };
+
+    // When: preparing authoring through the exported semantic helper.
+    const output = semanticDefinition(compact);
+
+    // Then: defaults do not replace explicit policy, source data, or server-owned identity.
+    expect(output).not.toHaveProperty("definition_id");
+    expect(output).not.toHaveProperty("check_release");
+    expect(output.bindings[0]).toMatchObject(compact.bindings[0]);
+    expect(output.decision).toEqual({ operator: "any", on_unresolved: "steer", rules: [{
+      type: "statement", question_id: "bounded", threshold: 0.7, match_when: "at_most",
+      ambiguous_band: [0.6, 0.8],
+    }] });
+    expect(compact.decision.rules[0]).not.toHaveProperty("type");
+  });
+
+  it.each(["explicit mismatch", "missing question", "duplicate question", "null type"])(
+    "does not infer over an invalid semantic reference: %s", (scenario) => {
+      // Given: an invalid authored reference must not acquire a guessed type.
+      const input = definition();
+      const rule = { question_id: "bounded", threshold: 0.8 };
+      if (scenario === "explicit mismatch") Object.assign(rule, { type: "score", min_score: 0 });
+      if (scenario === "missing question") rule.question_id = "unknown";
+      if (scenario === "duplicate question") input.questions.push({ ...input.questions[0] });
+      if (scenario === "null type") Object.assign(rule, { type: null });
+      input.decision.rules = [rule];
+
+      // When / Then: public validation rejects instead of weakening the rule.
+      expect(() => semanticDefinition(input)).toThrow();
+    },
+  );
+
   for (const fixture of contract.cases) {
     it(`matches the shared model: ${fixture.name}`, () => {
       // Given: a case and canonical output derived from the shared Pydantic model.

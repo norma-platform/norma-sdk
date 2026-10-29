@@ -61,6 +61,72 @@ describe('shared Console control helper fixtures', () => {
     expect(Object.isFrozen(result.authoredDocument?.controls)).toBe(true);
   });
 
+  it('accepts implicit hosted execution without rewriting the authored document', () => {
+    // Given: a controlled rule with the default execution omitted.
+    const document = JSON.parse(fixture.cases[0].source as string) as Record<string, unknown>;
+    delete document.execution;
+
+    // When: checking controls against trusted capabilities.
+    const result = validateAuthoredControls(JSON.stringify(document), fixture.capabilities);
+
+    // Then: validation remains delegated to the server without expanding the source.
+    expect(result.status).toBe('requires_server_validation');
+    expect(result.authoredDocument).toEqual(document);
+    expect(result.references).toHaveLength(1);
+  });
+
+  it.each([null, 'sdk', 'other'])('rejects an explicit unsupported execution %s', (execution) => {
+    // Given: explicit unsupported execution is different from omission.
+    const document = JSON.parse(fixture.cases[0].source as string) as Record<string, unknown>;
+    document.execution = execution;
+
+    // When: checking the document.
+    const result = validateAuthoredControls(JSON.stringify(document), fixture.capabilities);
+
+    // Then: the helper does not silently replace the explicit execution choice.
+    expect(result.status).toBe('invalid');
+    expect(result.diagnostics.map((item) => item.code)).toContain('control_execution_unsupported');
+  });
+
+  it.each([false, true])('infers semantic decision types with explicit selector %s without rewriting source', (withSelector) => {
+    // Given: a threshold control with the semantic question type specified once.
+    const document = {
+      condition: {
+        ...(withSelector ? { selector: { path: '*' } } : {}),
+        evaluator: { name: 'semantic', config: {
+          bindings: [{ name: 'evidence', path: 'input', required: false }],
+          questions: [{ id: 'q', type: 'statement', instructions: 'Check evidence',
+            criteria: { true: 'Supported', false: 'Unsupported' } }],
+          decision: { on_unresolved: 'deny', rules: [{ question_id: 'q', threshold: { $param: 'limit' } }] },
+        } },
+      },
+      controls: { limit: { type: 'number', label: 'Threshold', default: 0.8, minimum: 0, maximum: 1 } },
+    };
+    const capabilities = {
+      contract: 'rule-controls-v1', fingerprint: 'c'.repeat(64), manifests: [{
+        evaluator: 'semantic', evaluator_version: '1', schema_fingerprint: 'a'.repeat(64), slots: [{
+          evaluator: 'semantic', evaluator_version: '1', schema_fingerprint: 'a'.repeat(64),
+          path_template: '/config/decision/rules/*/threshold', control_types: ['number'],
+          predicates: [['/config/decision/rules/*/type', 'statement']], applicability: [],
+          affects: 'decision', requires_server_validation: true,
+          expected_value_schema: { types: ['number'], minimum: 0, maximum: 1 },
+        }],
+      }],
+    };
+
+    // When: validating against the question-specific trusted destination.
+    const result = validateAuthoredControls(JSON.stringify(document), capabilities);
+
+    // Then: source, nondefaults, and authored reference pointers remain exact.
+    expect(result.status).toBe('requires_server_validation');
+    expect(result.authoredDocument).toEqual(document);
+    expect(result.references).toEqual([{
+      key: 'limit', sourcePointer: '/condition/evaluator/config/decision/rules/0/threshold',
+      destinationPointer: '/condition/evaluator/config/decision/rules/0/threshold',
+      evaluatorPointer: '/condition/evaluator',
+    }]);
+  });
+
   it.each(['raw', 'parsed'])('keeps a rejected %s authored document immutable', (inputKind) => {
     const source = { execution: 'server', parameters: { nested: ['original'] } };
     const result = validateAuthoredControls(

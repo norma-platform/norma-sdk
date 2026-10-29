@@ -4,6 +4,7 @@ import * as z from "zod/v4-mini";
 
 import { copyCheckpointArguments } from "../checkpoint-arguments";
 import type { JsonObject } from "../types";
+import { inferSemanticDecisionTypes } from "./semantic-authoring";
 
 const text = (minimum: number, maximum: number) => z.string().check(
   z.refine((value) => Array.from(value).length >= minimum && Array.from(value).length <= maximum),
@@ -117,6 +118,9 @@ const definitionFields = {
 const exampleFields = { state: z.custom<JsonObject>(isObject), note: optional(text(0, 4000)) };
 const publicDefinition = z.strictObject({
   ...definitionFields,
+  // Omitted authoring metadata is assigned and pinned by the hosted runtime.
+  definition_id: z.optional(identifier),
+  check_release: z.optional(text(1, 128)),
   questions: list(publicQuestion, 1, 32),
   decision: z.strictObject({ ...decisionFields, rules: list(publicRule, 1, 32) }),
   examples: z._default(list(z.strictObject({ ...exampleFields,
@@ -143,10 +147,18 @@ export type SemanticScoreAnswer = z.infer<typeof scoreAnswer>;
 export type NormaSemanticAnswer = z.infer<typeof publicAnswer>;
 export type NormaSemanticQuestion = z.infer<typeof publicQuestion>;
 export type NormaSemanticRule = z.infer<typeof publicRule>;
-export type NormaSemanticDefinitionInput = z.input<typeof publicDefinition>;
+type AuthoredDecisionRule<T extends { type: string }> = T extends unknown
+  ? Omit<T, "type"> & { type?: T["type"] }
+  : never;
+type PublicDefinitionInput = z.input<typeof publicDefinition>;
+export type NormaSemanticDefinitionInput = Omit<PublicDefinitionInput, "decision"> & {
+  decision: Omit<PublicDefinitionInput["decision"], "rules"> & {
+    rules: AuthoredDecisionRule<z.input<typeof publicRule>>[];
+  };
+};
 export type NormaSemanticDefinition = z.infer<typeof publicDefinition>;
-/** Validated snake_case config for condition.evaluator.config on the v1 API. */
-export type SemanticDefinitionConfig = z.infer<typeof runtimeDefinition>;
+/** Validated authored config; omitted identity and release are resolved by the server. */
+export type SemanticDefinitionConfig = NormaSemanticDefinition;
 
 function copyJson(value: unknown): unknown {
   try { return copyCheckpointArguments([value], false)[0]; }
@@ -162,7 +174,7 @@ function sameKeys(left: object, right: object): boolean {
   return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key));
 }
 
-function coherentDefinition(definition: SemanticDefinitionConfig): SemanticDefinitionConfig {
+function coherentDefinition<T extends SemanticDefinitionConfig>(definition: T): T {
   const questions = new Map(definition.questions.map((question) => [question.id, question]));
   requireValid(questions.size === definition.questions.length, "Semantic question IDs must be unique");
   for (const key of ["name", "path"] as const) {
@@ -228,7 +240,10 @@ export function toNormaSemanticAnswer(answer: unknown): NormaSemanticAnswer {
 
 /** Validate native authoring without translating protocol vocabulary. */
 export function toRuntimeSemanticDefinition(config: NormaSemanticDefinitionInput): SemanticDefinitionConfig {
-  return coherentDefinition(publicDefinition.parse(copyJson(config)));
+  const detached = copyJson(config);
+  return coherentDefinition(publicDefinition.parse(
+    isObject(detached) ? inferSemanticDecisionTypes(detached) : detached,
+  ));
 }
 
 /** Validate native runtime definitions and preserve evidence and fingerprints exactly. */

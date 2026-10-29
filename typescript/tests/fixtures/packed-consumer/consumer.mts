@@ -58,6 +58,20 @@ currentClient.check;
 currentClient.ruleBindings;
 currentClient.agents.listRules;
 const definitionType: RuleDefinition = {execution: "server", action: {decision: "deny"}, condition: {selector: {path: "input"}, evaluator: {name: "json", config: {}}}};
+// Compact authoring leaves identity/release to the server and supplies question types once.
+const compactConfig = semanticDefinition({
+  bindings: [{ name: "input", path: "input" }],
+  questions: [{ id: "q", type: "statement", instructions: "Assess support",
+    criteria: { true: "Supported", false: "Unsupported" } }],
+  decision: { on_unresolved: "deny", rules: [{ question_id: "q", threshold: 0.8 }] },
+});
+compactConfig.definition_id satisfies string | undefined;
+compactConfig.check_release satisfies string | undefined;
+const compactRule: RuleDefinition = {
+  action: { decision: "deny" },
+  condition: { evaluator: { name: "semantic", config: compactConfig } },
+};
+void compactRule;
 const ruleStatus: Rule["status"] = "unsupported";
 // @ts-expect-error Generic rule templates are not part of the public Rule contract.
 const templatedDefinition: RuleDefinition = { ...definitionType, template: {} };
