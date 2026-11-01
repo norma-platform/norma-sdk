@@ -1,49 +1,27 @@
 <!-- Modified for Norma. -->
 # Norma SDKs
 
-Python and TypeScript clients for the hosted Norma API. Configure the gateway URL supplied by your workspace owner and an Agent Key:
+Install the supplied Python wheel or TypeScript package, configure a JSON/YAML file, validate it, and bind one existing agent to application functions. Start with the [configuration guide](docs/declarative-instrumentation.md), then choose a language guide.
 
-```sh
-export NORMA_RUNTIME_URL="https://your-gateway.example.com/api/runtime"
-export NORMA_AGENT_KEY="<your-agent-key>"
-```
+## Start with configuration
 
-Pass the registered agent name explicitly to the client operation. An agent name identifies an agent inside the key's workspace; it does not select a customer or workspace.
+1. [Install the Python SDK](https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev18-py3-none-any.whl) or [TypeScript SDK](https://norma-platform.cloud/artifacts/norma-sdk-4.0.0-dev.15.tgz) from the supplied archive. Use the exact downloaded filename in your install command.
+2. Read [configuration guides](docs/configuration-ux.md) for YAML-first examples and selector behavior.
+3. Run [offline configuration validation](docs/configuration-validation.md) before startup.
+4. Review the [configuration reference](docs/declarative-instrumentation.md) for supported fields and limits.
 
-- [Python client](python/README.md)
-- [TypeScript client](typescript/README.md)
-- [Workspace isolation and hostnames](docs/tenancy.md)
+Python setup and APIs are in [python/README.md](python/README.md). TypeScript setup and APIs are in [typescript/README.md](typescript/README.md). The same declarative schema is supported by both SDKs, with documented language-specific limits. Configuration validates existing identities and Rules; it does not create agents or attach Rules.
 
-These packages call the hosted service. They contain no local evaluation engine, service launcher, database migration commands, deployment tools, or account administration CLI. Native host-hook installation is a separate integration, not part of these SDKs.
+These packages call the hosted service. They contain no local evaluation engine, runtime service, database migrations, deployment tools, or account administration CLI. Create and attach Rules in Console. The hosted runtime performs execution; the SDK returns decisions to the application, which controls whether and how an action runs.
 
-Create and attach rules in Console using compact rule JSON. Server execution is implicit, and a rule's selectors and evaluators belong inside `condition`. Omit redundant defaults while retaining thresholds, scope, actions and other settings that change behavior. See the [control authoring example](docs/controls.md) and the [TypeScript semantic configuration helper](typescript/README.md#compact-semantic-configuration). Historical expanded definitions remain readable; runtime responses can include metadata and defaults that authors do not need to repeat.
+## Advanced SDK
 
-Python `8.7.1.dev4` and TypeScript `4.0.0-dev.2` include compact authoring-helper support. Older downloads retain their original helper requirements; follow the version notes in the language guides. Compact Console JSON does not require those helpers.
+Direct clients, manual checkpoint decorators and wrappers, explicit checks, and framework adapter details remain available in the language guides. Use those APIs when configuration does not cover the integration you need. An adapter protects only its documented call boundaries; it does not automatically cover an entire agent graph. A precheck can stop a selected action; a postcheck cannot undo an effect that already happened.
 
-Use environment variables or your application's secret manager for credentials. Never commit an Agent Key. API checks can consume the workspace's configured allowance; a successful HTTP response alone does not establish that a proposed action was permitted. Read the returned check result before executing the action.
-
-Package installation and method examples are maintained in each language guide. Repository availability does not establish registry publication or ownership of a package name.
-
-## Optional framework integrations
-
-Start with a Python `@norma.checkpoint(step_name="send_message")` or the TypeScript checkpoint wrapper when you own the function boundary. Framework adapters are useful when you need native blocked-call feedback or framework context; they do not automatically protect an entire agent graph.
-
-The [Python Google ADK plugin](python/GOOGLE_ADK.md) checks selected model and tool callbacks. Install its optional extra, initialize and bind it, and place Norma first in the ADK plugin list. Earlier overriding plugins can bypass later callbacks. A denied or steered precheck prevents the selected call; a postcheck cannot undo effects.
-
-Optional OpenAI Agents adapters attach checks to explicitly selected local function tools. The [Python Agents guide](python/OPENAI_AGENTS.md) describes explicit agent bindings and function-tool protection. The [TypeScript Agents guide](typescript/OPENAI_AGENTS.md) documents its dedicated `norma-sdk/openai-agents` entry point, supported version, setup, and exclusions. They do not intercept hosted tools, every handoff, or unwrapped functions. A steering response blocks the proposed call and offers feedback; it does not authorize a retry. Install the framework separately using the documented optional dependency.
-
-Finish helpers check completion and are distinct from pre-tool enforcement. Streamed content may already be visible before final validation, and a final decision cannot roll back tools that ran. Every adapter still requires the correct registered identity, scoped key, and an application decision about retries and feedback.
-
-## Hosted diagnostics
-
-After installing the Python package, run `norma config check` to validate the two required environment variables offline. Use `norma doctor --agent NAME` to explicitly check access to a registered agent through one authenticated read. Neither command writes credentials or infrastructure. `norma version` reports the installed package version.
+Use environment variables or a secret manager for credentials. Never commit an Agent Key. Read the returned decision before executing a proposal.
 
 ## Development
 
-Run the language-specific checks described in `python/README.md` and `typescript/README.md`. Public tests use synthetic data and local HTTP test doubles; integration qualification against the hosted platform runs separately with scoped test credentials.
+Run the language-specific checks described in `python/README.md` and `typescript/README.md`. Public tests use synthetic data and local HTTP test doubles; hosted integration checks are separate.
 
-Before publishing an export, run `python3 tools/verify_export.py .` on the fresh source snapshot and follow [the export policy](EXPORT_POLICY.md). This verifier checks that the snapshot matches its reviewed manifest. Maintainer source, vocabulary, dependency, secret and license reviews run separately before export.
-
-## License
-
-The SDKs retain the included [Apache 2.0 license](LICENSE). Applicable provenance and third-party notices are retained in [Python NOTICE](python/NOTICE) and [TypeScript THIRD_PARTY_NOTICES](typescript/THIRD_PARTY_NOTICES).
+Before preparing an export, run `python3 tools/verify_export.py .` and follow [the export policy](EXPORT_POLICY.md). The SDKs retain the included [Apache 2.0 license](LICENSE). Applicable notices are in [Python NOTICE](python/NOTICE) and [TypeScript THIRD_PARTY_NOTICES](typescript/THIRD_PARTY_NOTICES).

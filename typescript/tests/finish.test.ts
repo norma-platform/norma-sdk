@@ -3,6 +3,7 @@ import { checkFor } from "../src/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NormaClient } from "../src/client";
+import { HTTPClient } from "../src/generated/lib/http";
 import { checkpoint } from "../src/checkpoint";
 import { checkFinish, TurnRecorder } from "../src/finish";
 
@@ -28,6 +29,15 @@ describe("TurnRecorder", () => {
     expect(turn.final_message).toBe("Done. Bearer [REDACTED]");
     expect(turn.files_touched).toHaveLength(51);
     expect(turn.evidence_source).toBe("sdk");
+  });
+
+  it("keeps the ASCII final-message bound and counts astral text as Unicode code points", () => {
+    const recorder = new TurnRecorder({ sessionId: "session-bounds", turnId: "turn-bounds" });
+    const ascii = recorder.turn("a".repeat(8001)).final_message;
+    const astral = recorder.turn("💙".repeat(8001)).final_message;
+    expect(ascii).toHaveLength(8000);
+    expect([...astral]).toHaveLength(8000);
+    expect(astral).toHaveLength(16000);
   });
 
   it("automatically records decorated calls within the active async turn", async () => {
@@ -99,6 +109,21 @@ describe("checkFinish", () => {
     expect(body).toMatchObject({ agent_name: "coding-agent", stage: "pre", step: { type: "turn", name: "typescript-sdk.finish", input: { final_message: "All tests pass. Bearer [REDACTED]" } } });
   });
 
+  it("uses the configured HTTPClient and honors a shorter configured finish timeout", async () => {
+    let captured: Request | undefined;
+    const httpClient = new HTTPClient({ fetcher: async (input) => {
+      captured = input as Request;
+      await new Promise(resolve => setTimeout(resolve, 25));
+      return new Response("{}", { status: 200 });
+    } });
+    const active = new NormaClient();
+    active.init({ agentName: "coding-agent", runtimeUrl: "http://localhost:8000", agentKey: "test-key", timeoutMs: 5, httpClient });
+    const result = await checkFinish(new TurnRecorder({ sessionId: "s", turnId: "t" }).turn("Done"), { client: active });
+    expect(result.verdict).toBe("unavailable");
+    expect(captured?.url).toBe("http://localhost:8000/api/v1/checks");
+    expect(captured?.signal?.aborted).toBe(true);
+  });
+
   it("negotiates and retains finish control evidence only after both acknowledgements", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       execution_contract: "hosted-v1", control_contract: "rule-controls-v1", agent_generation: "generation-1",
@@ -116,6 +141,99 @@ describe("checkFinish", () => {
       control_evidence: [{ completeness: "unavailable" }] });
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     expect(request.headers.get("X-Norma-Control-Contract")).toBe("rule-controls-v1");
+  });
+
+  it("round-trips an explicit nested continuation generation for direct callers", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        execution_contract: "hosted-v1", agent_generation: "generation-1",
+        verdict: "hold", reason: "Continue", reason_codes: [], held_by: [7], would_hold_by: [],
+        continuation: { count: 0, max: 2, agent_generation: "generation-1" },
+        allow_finish: false, outcome: "held", provider_input_tokens: null,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        execution_contract: "hosted-v1", agent_generation: "generation-1",
+        verdict: "pass", reason: "Done", reason_codes: [], held_by: [], would_hold_by: [],
+        continuation: { count: 1, max: 2, agent_generation: "generation-1" },
+        allow_finish: true, outcome: "completed", provider_input_tokens: null,
+      }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const active = client();
+    const recorder = new TurnRecorder({ sessionId: "s", turnId: "t", maxContinuations: 2 });
+    const first = await checkFinish(recorder.turn("Continue"), { client: active });
+    expect(first.continuation.agent_generation).toBe("generation-1");
+
+    const secondTurn = recorder.turn("Done", 1, first.continuation.agent_generation);
+    expect((await checkFinish(secondTurn, { client: active })).verdict).toBe("pass");
+    const secondRequest = fetchMock.mock.calls[1]?.[0] as Request;
+    const secondBody = await secondRequest.clone().json() as { step: { input: { continuation: { agent_generation?: string | null } } } };
+    expect(secondBody.step.input.continuation.agent_generation).toBe("generation-1");
+  });
+
+  it("omits null continuation generation from recorder and caller-supplied finish requests", async () => {
+    const recorder = new TurnRecorder({ sessionId: "s", turnId: "t", maxContinuations: 2 });
+    const recorded = recorder.turn("Done", 1, null);
+    expect(recorded.continuation).toEqual({ count: 1, max: 2 });
+
+    const base = recorder.turn("Done", 1);
+    const callerSupplied = { ...base, continuation: { ...base.continuation, agent_generation: null } };
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      execution_contract: "hosted-v1", verdict: "pass", reason: "Done", reason_codes: [], held_by: [], would_hold_by: [],
+      continuation: { count: 1, max: 2 }, allow_finish: true, outcome: "completed", provider_input_tokens: null,
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await checkFinish(callerSupplied, { client: client() })).verdict).toBe("pass");
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    const body = await request.clone().json() as { step: { input: { continuation: Record<string, unknown> } } };
+    expect(body.step.input.continuation).toEqual({ count: 1, max: 2 });
+  });
+
+  it("fails open when finish generation metadata is inconsistent or changes a pinned request", async () => {
+    const response = (agentGeneration: string, nestedGeneration: string) => new Response(JSON.stringify({
+      execution_contract: "hosted-v1", agent_generation: agentGeneration,
+      verdict: "pass", reason: "Done", reason_codes: [], held_by: [], would_hold_by: [],
+      continuation: { count: 1, max: 2, agent_generation: nestedGeneration },
+      allow_finish: true, outcome: "completed", provider_input_tokens: null,
+    }), { status: 200 });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response("generation-top", "generation-nested"))
+      .mockResolvedValueOnce(response("generation-next", "generation-next"));
+    vi.stubGlobal("fetch", fetchMock);
+    const active = client();
+    const recorder = new TurnRecorder({ sessionId: "s", turnId: "t", maxContinuations: 2 });
+
+    const conflictingResponse = await checkFinish(recorder.turn("Done", 1), { client: active });
+    expect(conflictingResponse).toMatchObject({ verdict: "unavailable", outcome: "finished_unverified" });
+    const changedPinnedResponse = await checkFinish(recorder.turn("Done", 1, "generation-pinned"), { client: active });
+    expect(changedPinnedResponse).toMatchObject({ verdict: "unavailable", outcome: "finished_unverified" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails open when a pinned request receives no nested generation", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      execution_contract: "hosted-v1", verdict: "pass", reason: "Done", reason_codes: [], held_by: [], would_hold_by: [],
+      continuation: { count: 1, max: 2 }, allow_finish: true, outcome: "completed", provider_input_tokens: null,
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const turn = new TurnRecorder({ sessionId: "s", turnId: "t", maxContinuations: 2 })
+      .turn("Done", 1, "pinned-generation");
+
+    expect(await checkFinish(turn, { client: client() })).toMatchObject({
+      verdict: "unavailable", allow_finish: true, outcome: "finished_unverified",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps continuation response parsing strict after adding generation metadata", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      execution_contract: "hosted-v1", verdict: "pass", reason: "Done", reason_codes: [], held_by: [], would_hold_by: [],
+      continuation: { count: 0, max: 2, agent_generation: "generation-1", unexpected: true },
+      allow_finish: true, outcome: "completed", provider_input_tokens: null,
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await checkFinish(new TurnRecorder({ sessionId: "s", turnId: "t" }).turn("Done"), { client: client() });
+    expect(result).toMatchObject({ verdict: "unavailable", allow_finish: true, outcome: "finished_unverified" });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("does not trust an opted-in finish without both acknowledgements and never replays it", async () => {

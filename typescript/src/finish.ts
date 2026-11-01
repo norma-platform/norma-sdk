@@ -21,7 +21,7 @@ export interface ActionSummary {
   output_tail: string | null;
   duration_ms: number | null;
 }
-export interface ContinuationState { count: number; max: number }
+export interface ContinuationState { count: number; max: number; agent_generation?: string | null }
 export interface TurnRecord {
   schema_version: "1";
   platform: string;
@@ -97,6 +97,20 @@ function bounded(value: string | null | undefined, limit: number, tail = false):
   return tail ? redacted.slice(-limit) : redacted.slice(0, limit);
 }
 
+function boundedCodePoints(value: string | null | undefined, limit: number): string | null {
+  if (value == null) return null;
+  if (value.length > 65_536) return "[omitted oversized text]";
+  const redacted = redactTurnText(value);
+  let result = "";
+  let count = 0;
+  for (const character of redacted) {
+    if (count >= limit) break;
+    result += character;
+    count += 1;
+  }
+  return result;
+}
+
 export class TurnRecorder {
   private readonly options: Required<Pick<TurnRecorderOptions, "sessionId" | "turnId" | "platform" | "maxContinuations">> & TurnRecorderOptions;
   private readonly actions: ActionSummary[] = [];
@@ -137,8 +151,11 @@ export class TurnRecorder {
     return { ...action };
   }
 
-  turn(finalMessage: string, continuationCount = 0): TurnRecord {
+  turn(finalMessage: string, continuationCount = 0, agentGeneration?: string | null): TurnRecord {
     if (!Number.isInteger(continuationCount) || continuationCount < 0) throw new Error("continuationCount must be nonnegative");
+    if (agentGeneration !== undefined && agentGeneration !== null && agentGeneration.length > 128) {
+      throw new Error("agentGeneration must be at most 128 characters");
+    }
     return {
       schema_version: "1",
       platform: bounded(this.options.platform, 256) ?? "typescript-sdk",
@@ -147,12 +164,16 @@ export class TurnRecorder {
       session_id: bounded(this.options.sessionId, 512) ?? "",
       turn_id: bounded(this.options.turnId, 512) ?? "",
       user_request: bounded(this.options.userRequest, 2000),
-      final_message: bounded(finalMessage, 8000) ?? "",
+      final_message: boundedCodePoints(finalMessage, 8000) ?? "",
       actions: this.actions.map((action) => ({ ...action })),
       actions_truncated: this.truncated,
       files_touched: [...this.filesTouched],
       evidence_source: "sdk",
-      continuation: { count: continuationCount, max: this.options.maxContinuations },
+      continuation: {
+        count: continuationCount,
+        max: this.options.maxContinuations,
+        ...(agentGeneration === undefined || agentGeneration === null ? {} : { agent_generation: agentGeneration }),
+      },
     };
   }
 }
@@ -162,7 +183,11 @@ export function recordDecoratedAction(input: RecordAction): void {
   activeRecorder.getStore()?.recordAction(input);
 }
 
-const continuationSchema = z.strictObject({ count: z.number().int().nonnegative(), max: z.number().int().min(0).max(3) });
+const continuationSchema = z.strictObject({
+  count: z.number().int().nonnegative(),
+  max: z.number().int().min(0).max(3),
+  agent_generation: z.string().max(128).nullable().optional(),
+});
 const actionSchema = z.strictObject({
   index: z.number().int().nonnegative(),
   kind: z.enum(["shell", "edit", "read", "search", "web", "mcp", "task", "other"]),
@@ -182,7 +207,7 @@ const turnSchema = z.strictObject({
   session_id: z.string().min(1).max(512),
   turn_id: z.string().min(1).max(512),
   user_request: z.string().max(2000).nullable(),
-  final_message: z.string().max(8000),
+  final_message: z.string().refine(value => countCodePoints(value) <= 8000),
   actions: z.array(actionSchema).max(50),
   actions_truncated: z.boolean(),
   files_touched: z.array(z.string().max(300)).max(200),
@@ -262,7 +287,7 @@ function redactTurn(turn: TurnRecord): TurnRecord {
     session_id: bounded(turn.session_id, 512) ?? "",
     turn_id: bounded(turn.turn_id, 512) ?? "",
     user_request: bounded(turn.user_request, 2000),
-    final_message: bounded(turn.final_message, 8000) ?? "",
+    final_message: boundedCodePoints(turn.final_message, 8000) ?? "",
     actions: turn.actions.slice(-50).map((action) => ({
       ...action,
       native_tool: bounded(action.native_tool, 256) ?? "",
@@ -273,6 +298,16 @@ function redactTurn(turn: TurnRecord): TurnRecord {
     actions_truncated: turn.actions_truncated || turn.actions.length > 50,
     files_touched: turn.files_touched.slice(-200).map((path) => bounded(path, 300) ?? ""),
   };
+}
+
+function countCodePoints(value: string): number {
+  let count = 0;
+  for (let index = 0; index < value.length;) {
+    const codePoint = value.codePointAt(index)!;
+    index += codePoint > 0xffff ? 2 : 1;
+    count += 1;
+  }
+  return count;
 }
 
 /** Finish checks fail open on network, auth, timeout, and invalid response failures. */
@@ -286,13 +321,18 @@ export async function checkFinish(
   if (!config || !(options.agentName ?? config.agentName)) return unavailable(continuation);
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineMs = Math.min(8_000, Math.max(0, config.timeoutMs ?? 8_000));
   const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => { controller.abort(); reject(new Error("finish deadline exceeded")); }, 8_000);
+    timer = setTimeout(() => { controller.abort(); reject(new Error("finish deadline exceeded")); }, deadlineMs);
   });
   try {
     const sanitized = redactTurn(turn);
     const checkedTurn = turnSchema.safeParse(sanitized);
     if (!checkedTurn.success) return unavailable(continuation);
+    const { agent_generation: requestGeneration, ...continuationWithoutGeneration } = checkedTurn.data.continuation;
+    const requestTurn = requestGeneration === null
+      ? { ...checkedTurn.data, continuation: continuationWithoutGeneration }
+      : checkedTurn.data;
     const targetType = options.targetType ?? config.targetType;
     const targetId = options.targetId ?? config.targetId;
     if (Boolean(targetType) !== Boolean(targetId)) return unavailable(continuation);
@@ -300,7 +340,7 @@ export async function checkFinish(
       execution_mode: "hosted",
       agent_name: options.agentName ?? config.agentName,
       stage: "pre",
-      step: { type: "turn", name: `${sanitized.platform}.finish`, input: checkedTurn.data, output: null },
+      step: { type: "turn", name: `${sanitized.platform}.finish`, input: requestTurn, output: null },
       ...(targetType && targetId ? { target_type: targetType, target_id: targetId } : {}),
     };
     const payload = JSON.stringify(request);
@@ -309,18 +349,27 @@ export async function checkFinish(
       const key = typeof config.agentKey === "function" ? await config.agentKey() : config.agentKey;
       if (controller.signal.aborted) return unavailable(continuation);
       if (!key) return unavailable(continuation);
-      const response = await fetch(new Request(new URL("api/v1/checks", `${config.runtimeUrl.replace(/\/$/, "")}/`), {
+      const request = new Request(new URL("api/v1/checks", `${config.runtimeUrl.replace(/\/$/, "")}/`), {
         method: "POST", redirect: "error",
         headers: { "Content-Type": "application/json", "X-API-Key": key,
           ...(config.controlContract === "rule-controls-v1" ? { [CONTROL_CONTRACT_HEADER]: "rule-controls-v1" } : {}) },
         body: payload,
         signal: controller.signal,
-      }));
+      });
+      const response = config.httpClient ? await config.httpClient.request(request) : await fetch(request);
       if (!response.ok) return unavailable(continuation);
       const responseBody = await boundedResponse(response);
       if (config.controlContract === "rule-controls-v1") requireControlAcknowledgementEnvelope(response, responseBody);
       const parsed = finishVerdictSchema.safeParse(responseBody);
       if (!parsed.success || parsed.data.continuation.count !== continuation.count || parsed.data.continuation.max > continuation.max) return unavailable(continuation);
+      const topLevelGeneration = parsed.data.agent_generation;
+      const nestedGeneration = parsed.data.continuation.agent_generation;
+      if (topLevelGeneration !== undefined && nestedGeneration !== undefined && topLevelGeneration !== nestedGeneration) {
+        return unavailable(continuation);
+      }
+      if (typeof continuation.agent_generation === "string" && nestedGeneration !== continuation.agent_generation) {
+        return unavailable(continuation);
+      }
       return { ...parsed.data, reason: bounded(parsed.data.reason, 600) ?? "" };
     };
     return await Promise.race([work(), deadline]);

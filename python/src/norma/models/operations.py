@@ -74,11 +74,11 @@ class OperationProposal(OperationRequestModel):
 
 
 class CreateOperationRequest(OperationProposal):
-    """A hosted-only proposal; failed or unresolved checks block new operations."""
+    """A hosted-only proposal; failed checks block, unresolved handling is explicit."""
 
     execution_mode: Literal["hosted"] = "hosted"
     error_policy: Literal["block"] = "block"
-    unresolved_policy: Literal["block"] = "block"
+    unresolved_policy: Literal["allow", "block"] = "block"
 
 
 class OperationRuleSnapshot(BaseModel):

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import inspect
 import logging
 import threading
@@ -16,7 +17,7 @@ import norma
 from norma import NormaClient, agents
 from norma._rule_registry import StepSchemaDict
 from norma._schema_derivation import derive_schemas
-from norma._state import state as _session_state
+from norma._state import get_state
 from norma.integrations._core import _evaluate_and_enforce
 from norma.integrations._tools import normalized_tool_definition
 from norma.models import redact_turn_text
@@ -78,11 +79,12 @@ class NormaPlugin(BasePlugin):
         context_extractor: Callable[..., dict[str, Any] | None] | None = None,
         on_violation_callback: Callable[[dict[str, Any], Any], None] | None = None,
         enable_logging: bool = True,
+        register_schemas: bool = True,
     ) -> None:
         super().__init__(name=self.name)
 
         normalized_name = ensure_agent_name(agent_name)
-        current = _session_state.current_agent
+        current = get_state().current_agent
         if current is not None and current.agent_name != normalized_name:
             raise ValueError(
                 "NormaPlugin agent_name must match the currently initialized norma agent."
@@ -100,6 +102,7 @@ class NormaPlugin(BasePlugin):
         self.context_extractor = context_extractor
         self.on_violation_callback = on_violation_callback
         self.enable_logging = enable_logging
+        self.register_schemas = register_schemas
         self._generated_invocation_ids: weakref.WeakKeyDictionary[object, str] = (
             weakref.WeakKeyDictionary()
         )
@@ -724,8 +727,8 @@ class NormaPlugin(BasePlugin):
             self._known_steps[key] = step
 
     def _require_bound_session(self) -> None:
-        current = _session_state.current_agent
-        if current is None or _session_state.server_url is None:
+        current = get_state().current_agent
+        if current is None or get_state().server_url is None:
             raise RuntimeError(
                 "Call norma.init() successfully before binding or running Google ADK."
             )
@@ -735,10 +738,10 @@ class NormaPlugin(BasePlugin):
             )
         snapshot = (
             current,
-            _session_state.server_url,
-            _session_state.api_key,
-            _session_state.target_type,
-            _session_state.target_id,
+            get_state().server_url,
+            get_state().api_key,
+            get_state().target_type,
+            get_state().target_id,
         )
         if self._bound_session is None:
             self._bound_session = snapshot
@@ -924,8 +927,11 @@ class NormaPlugin(BasePlugin):
 
     async def _sync_steps_async(self, steps: list[StepSchemaDict]) -> None:
         self._require_bound_session()
-        current = _session_state.current_agent
-        if current is None or _session_state.server_url is None:
+        if not self.register_schemas:
+            self._synced_step_keys.update((step["type"], step["name"]) for step in steps)
+            return
+        current = get_state().current_agent
+        if current is None or get_state().server_url is None:
             raise RuntimeError(
                 "Call norma.init() successfully before binding or running Google ADK."
             )
@@ -936,8 +942,8 @@ class NormaPlugin(BasePlugin):
             )
 
         async with NormaClient(
-            runtime_url=_session_state.server_url,
-            agent_key=_session_state.api_key,
+            runtime_url=get_state().server_url,
+            agent_key=get_state().api_key,
         ) as client:
             response = await agents.get_agent(client, self.agent_name)
             self._require_bound_session()
@@ -959,7 +965,7 @@ class NormaPlugin(BasePlugin):
             self._require_bound_session()
             rules = register_response.get("rules")
             if isinstance(rules, list):
-                _session_state.server_rules = list(rules)
+                get_state().server_rules = list(rules)
             self._synced_step_keys.update((step["type"], step["name"]) for step in steps)
 
     def _run_sync(self, coro: Any) -> Any:
@@ -978,7 +984,8 @@ class NormaPlugin(BasePlugin):
             except Exception as exc:  # noqa: BLE001
                 result_box["error"] = exc
 
-        thread = threading.Thread(target=_thread_worker, daemon=True)
+        context = contextvars.copy_context()
+        thread = threading.Thread(target=context.run, args=(_thread_worker,), daemon=True)
         thread.start()
         thread.join(timeout=_SYNC_TIMEOUT_SECONDS)
 

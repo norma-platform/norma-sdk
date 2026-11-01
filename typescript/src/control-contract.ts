@@ -2,7 +2,15 @@
 /** Opt-in negotiation for versioned control receipts and evidence. */
 
 export type ControlContract = "rule-controls-v1";
+export type ControlContractInput = ControlContract | "rule-controls";
 export const CONTROL_CONTRACT_HEADER = "X-Norma-Control-Contract";
+
+/** Normalize friendly configuration spelling to the exact versioned wire token. */
+export function normalizeControlContract(value: ControlContractInput | undefined): ControlContract | undefined {
+  if (value === undefined) return undefined;
+  if (value === "rule-controls" || value === "rule-controls-v1") return "rule-controls-v1";
+  throw new TypeError("controlContract must be 'rule-controls' or 'rule-controls-v1'.");
+}
 
 /** A runtime did not prove it supports the requested control contract. */
 export class UnsupportedControlContractError extends Error {

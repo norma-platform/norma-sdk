@@ -61,10 +61,11 @@ import threading
 import time
 from collections.abc import Awaitable, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import httpx
 
+from norma._state import active_state
 from norma._telemetry.sink_selection import (
     DEFAULT_RULE_EVENT_SINK_NAME,
     REGISTERED_RULE_EVENT_SINK_NAME,
@@ -337,6 +338,7 @@ class EventBatcher:
             runtime_url if runtime_url is not None else get_settings().runtime_url
         ).rstrip("/")
         self.agent_key = agent_key if agent_key is not None else get_settings().agent_key
+        self.settings = get_settings().model_copy(deep=True)
         self.batch_size = batch_size if batch_size is not None else get_settings().batch_size
         if flush_interval is not None:
             self.flush_interval = flush_interval
@@ -536,7 +538,7 @@ class EventBatcher:
         """Send a batch synchronously for shutdown/atexit fallback."""
         url, headers, payload = self._build_batch_request(events)
 
-        for attempt in range(get_settings().max_retries):
+        for attempt in range(self.settings.max_retries):
             remaining: float | None = None
             if deadline is not None:
                 remaining = deadline - time.monotonic()
@@ -567,10 +569,10 @@ class EventBatcher:
             except Exception:
                 self._delivery_failed("Norma event delivery failed; check configuration and retry.")
 
-            if attempt >= get_settings().max_retries - 1:
+            if attempt >= self.settings.max_retries - 1:
                 break
 
-            retry_delay = get_settings().retry_delay * (attempt + 1)
+            retry_delay = self.settings.retry_delay * (attempt + 1)
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -784,7 +786,7 @@ class EventBatcher:
 
         client = await self._get_client()
 
-        for attempt in range(get_settings().max_retries):
+        for attempt in range(self.settings.max_retries):
             try:
                 response = await client.post(url, json=payload, headers=headers)
 
@@ -804,8 +806,8 @@ class EventBatcher:
             except Exception:
                 self._delivery_failed("Norma event delivery failed; check configuration and retry.")
 
-            if attempt < get_settings().max_retries - 1:
-                await asyncio.sleep(get_settings().retry_delay * (attempt + 1))
+            if attempt < self.settings.max_retries - 1:
+                await asyncio.sleep(self.settings.retry_delay * (attempt + 1))
 
         return False
 
@@ -1175,6 +1177,12 @@ def _get_active_rule_event_sinks() -> tuple[RuleEventSink, ...]:
     config selects the default built-in sink, the registered external sink set,
     or a named registered sink factory.
     """
+    selected = active_state()
+    if selected is not None:
+        sink = selected.observability_sink
+        if isinstance(sink, tuple):
+            return cast(tuple[RuleEventSink, ...], sink)
+        return (sink,) if sink is not None else ()
     if not get_settings().observability_enabled:
         return ()
 
@@ -1418,8 +1426,12 @@ def write_events(events: Sequence[RuleCheckEvent]) -> SinkResult:
     to inspect delivery. Fanout reports the least successful sink's result.
     """
     global _custom_events_dropped
+    selected = active_state()
     active_sinks = _get_active_rule_event_sinks()
     if not active_sinks:
+        if selected is not None:
+            selected.observability_dropped += len(events)
+            return SinkResult(accepted=0, dropped=len(events))
         if get_settings().observability_sink_name != DEFAULT_RULE_EVENT_SINK_NAME:
             with _custom_delivery_lock:
                 _custom_events_dropped += len(events)
@@ -1442,6 +1454,9 @@ def write_events(events: Sequence[RuleCheckEvent]) -> SinkResult:
 
     dropped = max(max_dropped, len(events) - min_accepted)
     accepted = min(min_accepted, max(len(events) - dropped, 0))
+    if selected is not None:
+        selected.observability_dropped += dropped
+        return SinkResult(accepted=accepted, dropped=dropped)
     if get_settings().observability_sink_name != DEFAULT_RULE_EVENT_SINK_NAME:
         with _custom_delivery_lock:
             _custom_events_dropped += dropped
@@ -1485,6 +1500,35 @@ def sync_flush_observability() -> DeliveryReceipt:
     This operation never changes a Rule's enforcement result. Partial or failed
     default-sink deliveries remain queued; callers can retry this operation.
     """
+    selected = active_state()
+    if selected is not None:
+        batcher = selected.observability_batcher
+        if batcher is not None:
+            loop = batcher._loop
+            if loop is not None and loop.is_running():
+                future = asyncio.run_coroutine_threadsafe(
+                    batcher.flush_all(close_client=False), loop
+                )
+                try:
+                    return future.result(timeout=batcher.shutdown_flush_timeout)
+                except TimeoutError:
+                    future.cancel()
+                    batcher._delivery_failed("Norma event flush timed out; retry before exiting.")
+                    return batcher.get_delivery_receipt()
+            batcher._flush_all_without_worker(timeout=batcher.shutdown_flush_timeout)
+            return batcher.get_delivery_receipt()
+        sink = selected.observability_sink
+        if sink is not None:
+            selected_sinks = sink if isinstance(sink, tuple) else (sink,)
+            success = all(_flush_custom_rule_event_sink(item) for item in selected_sinks)
+            return DeliveryReceipt(
+                "unconfirmed" if success and selected.observability_dropped == 0 else "failed",
+                dropped=selected.observability_dropped,
+            )
+        settings = selected.observability_settings
+        return DeliveryReceipt(
+            "disabled" if settings is None or not settings.observability_enabled else "empty"
+        )
     batcher = _batcher
     if batcher is not None:
         loop = batcher._loop
@@ -1521,10 +1565,36 @@ def sync_shutdown_observability() -> DeliveryReceipt:
     Registered custom sinks remain owned by the application. Their storage is
     unconfirmed here; applications must flush and close those sinks themselves.
     """
-    receipt = _shutdown_built_in_event_sink()
+    selected = active_state()
+    if selected is not None:
+        batcher = selected.observability_batcher
+        sink = selected.observability_sink
+        selected.observability_batcher = None
+        selected.observability_sink = None
+        if batcher is not None:
+            receipt = batcher.shutdown()
+            return receipt
+        if sink is not None:
+            selected_sinks = sink if isinstance(sink, tuple) else (sink,)
+            if not selected.observability_sink_owned:
+                return DeliveryReceipt(
+                    "unconfirmed",
+                    dropped=selected.observability_dropped,
+                    message="Registered event sinks remain application-owned and were left open.",
+                )
+            success = all(_shutdown_custom_rule_event_sink(item) for item in selected_sinks)
+            return DeliveryReceipt(
+                "unconfirmed" if success and selected.observability_dropped == 0 else "failed",
+                dropped=selected.observability_dropped,
+            )
+        settings = selected.observability_settings
+        return DeliveryReceipt(
+            "disabled" if settings is None or not settings.observability_enabled else "empty"
+        )
+    default_receipt = _shutdown_built_in_event_sink()
     custom_success = _shutdown_configured_named_event_sink()
-    if receipt is not None:
-        return receipt
+    if default_receipt is not None:
+        return default_receipt
     if not get_settings().observability_enabled:
         return _inactive_delivery_receipt()
     if get_settings().observability_sink_name != DEFAULT_RULE_EVENT_SINK_NAME:

@@ -72,7 +72,12 @@
   ],
   "finishRoute": "POST /api/v1/checks",
   "dependencies": [
+    "ajv",
+    "yaml",
     "zod"
+  ],
+  "optionalTypeOnlyImports": [
+    "src/instrumentation-adapters.ts:@openai/agents"
   ],
   "checkProof": {
     "request": {

@@ -33,12 +33,14 @@ const proposalStep = z.strictObject({
 const operationEvidence = z.strictObject({ id: text(128), summary: text(2000), source: text(255) });
 const createSchema = z.strictObject({
   operationKey: text(128), step: proposalStep,
+  targetType: text(255).optional(), targetId: text(255).optional(),
   errorPolicy: z.literal("block").default("block"),
   unresolvedPolicy: z.enum(["allow", "block"]).default("block"),
   evidence: z.array(operationEvidence).max(30).default([]),
-});
+}).refine((value) => Boolean(value.targetType) === Boolean(value.targetId), "Both target fields are required");
 export interface CreateOperation {
   operationKey: string; step: {type: "tool"; name: string; input: JsonObject; output?: null; groundTruth?: null; context?: JsonObject | null; tools?: JsonObject[] | null};
+  targetType?: string; targetId?: string;
   errorPolicy?: "block"; unresolvedPolicy?: "allow" | "block"; evidence?: {id: string; summary: string; source: string}[];
 }
 const observeSchema = z.strictObject({
@@ -213,21 +215,23 @@ export class HostedOperationsApi implements OperationsApi {
   async create(request: CreateOperation, options?: OperationRequestOptions): Promise<OperationRecord> {
     const input = createSchema.parse(copyCheckpointArguments([request], false)[0]);
     const { groundTruth, ...step } = input.step;
-    const payload = { ...this.scope(), operation_key: input.operationKey, stage: "pre", execution_mode: "hosted",
+    const payload = { ...this.scope(input.targetType, input.targetId), operation_key: input.operationKey, stage: "pre", execution_mode: "hosted",
       step: { ...step, ...(groundTruth === undefined ? {} : { ground_truth: groundTruth }) },
       error_policy: input.errorPolicy, unresolved_policy: input.unresolvedPolicy, evidence: input.evidence };
     const body = JSON.stringify(payload);
     if (new TextEncoder().encode(body).length > 65536) throw new TypeError("Operation proposal exceeds 65536 bytes");
-    const record = this.read(await this.request("POST", "/api/v1/operations", body, options));
+    const record = this.read(await this.request("POST", "/api/v1/operations", body, options), undefined, input.targetType, input.targetId);
     if (record.decision.check.executionContract !== "hosted-v1") {
       throw new Error("Hosted operation requires hosted-v1 execution proof.");
     }
     if (record.rules.some((rule) => rule.definition.enabled && ruleDefinitionFromWire(rule.definition) === null)) {
       throw new Error("Hosted Norma operations cannot accept an SDK-local rule snapshot.");
     }
-    const expected = { ...input, step: { ...input.step, output: null, groundTruth: null,
+    const expected = { ...input, targetType: input.targetType ?? this.identity.targetType,
+      targetId: input.targetId ?? this.identity.targetId, step: { ...input.step, output: null, groundTruth: null,
       context: input.step.context ?? null, tools: input.step.tools ?? null } };
-    const actual = { operationKey: record.request.operationKey, errorPolicy: record.request.errorPolicy,
+    const actual = { operationKey: record.request.operationKey, targetType: record.request.targetType ?? undefined,
+      targetId: record.request.targetId ?? undefined, errorPolicy: record.request.errorPolicy,
       unresolvedPolicy: record.request.unresolvedPolicy, evidence: record.request.evidence,
       step: { ...record.request.step, output: null, groundTruth: null,
         context: record.request.step.context ?? null, tools: record.request.step.tools ?? null } };
@@ -270,18 +274,18 @@ export class HostedOperationsApi implements OperationsApi {
     const safe = text(255).refine((value) => value !== "." && value !== "..", "Invalid operation ID").parse(id);
     return `/api/v1/operations/${encodeURIComponent(safe)}`;
   }
-  private scope(): { agent_name: string; target_type?: string; target_id?: string } {
+  private scope(targetType = this.identity.targetType, targetId = this.identity.targetId): { agent_name: string; target_type?: string; target_id?: string } {
     return { agent_name: this.identity.agentName,
-      ...(this.identity.targetType === undefined ? {} : { target_type: this.identity.targetType, target_id: this.identity.targetId }) };
+      ...(targetType === undefined ? {} : { target_type: targetType, target_id: targetId }) };
   }
-  private read(value: unknown, id?: string): WireOperationRecord {
+  private read(value: unknown, id?: string, targetType = this.identity.targetType, targetId = this.identity.targetId): WireOperationRecord {
     const record = operationRecordSchema.parse(value);
     const expected = this.identity.agentName.trim().toLowerCase();
     if (record.agentName !== expected || record.request.agentName !== expected
-      || (record.targetType ?? null) !== (this.identity.targetType ?? null)
-      || (record.targetId ?? null) !== (this.identity.targetId ?? null)
-      || (record.request.targetType ?? null) !== (this.identity.targetType ?? null)
-      || (record.request.targetId ?? null) !== (this.identity.targetId ?? null)
+      || (record.targetType ?? null) !== (targetType ?? null)
+      || (record.targetId ?? null) !== (targetId ?? null)
+      || (record.request.targetType ?? null) !== (targetType ?? null)
+      || (record.request.targetId ?? null) !== (targetId ?? null)
       || record.operationKey !== record.request.operationKey || (id !== undefined && record.id !== id)) {
       throw new Error("Operation receipt does not match the requested identity");
     }

@@ -34,7 +34,11 @@ class DerivedSchemas:
     output_schema: dict[str, Any]
 
 
-def derive_schemas(func: Callable[..., Any]) -> DerivedSchemas:
+def derive_schemas(
+    func: Callable[..., Any],
+    *,
+    input_signature: inspect.Signature | None = None,
+) -> DerivedSchemas:
     """Derive input/output JSON schemas for a function.
 
     Args:
@@ -79,7 +83,12 @@ def derive_schemas(func: Callable[..., Any]) -> DerivedSchemas:
 
     input_schema = input_schema_override
     if input_schema is None:
-        input_schema = _infer_input_schema(func, unwrapped, hints)
+        input_schema = _infer_input_schema(
+            func,
+            unwrapped,
+            hints,
+            input_signature=input_signature,
+        )
 
     output_schema = _infer_output_schema(func, hints)
     return DerivedSchemas(input_schema=input_schema, output_schema=output_schema)
@@ -121,11 +130,13 @@ def _infer_input_schema(
     func: Callable[..., Any],
     unwrapped: Callable[..., Any],
     hints: dict[str, Any],
+    *,
+    input_signature: inspect.Signature | None = None,
 ) -> dict[str, Any]:
     """Infer input schema from signature + type hints using dynamic Pydantic model."""
 
     try:
-        signature = inspect.signature(unwrapped)
+        signature = input_signature or inspect.signature(unwrapped)
     except Exception as exc:
         _warn(
             func,
@@ -138,7 +149,7 @@ def _infer_input_schema(
 
     fields: dict[str, tuple[Any, Any]] = {}
     for name, param in signature.parameters.items():
-        if name in {"self", "cls"}:
+        if input_signature is None and name in {"self", "cls"}:
             continue
         if param.kind in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}:
             continue

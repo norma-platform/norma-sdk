@@ -6,7 +6,7 @@ import { CheckError, RuleViolationError, RuleSteerError } from "./errors";
 import { recordDecoratedAction, redactTurnText } from "./finish";
 import { jsonValueSchema } from "./json-contract";
 import type { JsonObject, JsonValue } from "./types";
-import type { Decision } from "./public-api";
+import type { CheckRequest, Decision } from "./public-api";
 
 export type ActionKind = "shell" | "edit" | "read" | "search" | "web" | "mcp" | "task" | "other";
 
@@ -20,11 +20,15 @@ export interface NormaAction {
 export interface CheckpointOptions<TArgs extends unknown[] = unknown[]> {
   client?: NormaClient;
   stepName?: string;
-  stepType?: "tool" | "llm";
+  stepType?: string;
   targetType?: string;
   targetId?: string;
+  /** Internal per-invocation target scope selected by declarative entrypoint context. */
+  targetScope?: () => { targetType?: string; targetId?: string } | undefined;
+  /** Internal per-invocation trace selected by a declarative entrypoint. */
+  traceContext?: () => { traceId?: string; spanId?: string } | undefined;
   /** Caller-owned facts about this action; the SDK never guesses that a function runs shell/edit. */
-  action?: NormaAction | ((...args: TArgs) => NormaAction);
+  action?: NormaAction | ((...args: TArgs) => NormaAction | Promise<NormaAction>);
   /**
    * Explicit observed state, or a callback resolved once before this invocation's precheck.
    * Only plain JSON is accepted (64 KiB, 32 levels, 10000 nodes, safe integers).
@@ -32,14 +36,44 @@ export interface CheckpointOptions<TArgs extends unknown[] = unknown[]> {
    * State is evaluated regardless of retention settings; it does not reserve or update data.
    */
   state?: JsonObject | ((...args: TArgs) => JsonObject | Promise<JsonObject>);
+  /** Internal declarative payload mapping, resolved once before pre and once after normal return. */
+  payload?: {
+    pre(args: TArgs): Promise<Partial<Pick<CheckRequest["step"], "input" | "context" | "tools" | "groundTruth">>>;
+    post(args: TArgs, result: unknown): Promise<Pick<CheckRequest["step"], "output">>;
+  };
 }
 
 export type AsyncFn<TArgs extends unknown[], TResult> = (...args: TArgs) => Promise<TResult>;
 
-function normalizedAction<TArgs extends unknown[]>(
+const checkpointWrappers = new WeakSet<object>();
+const configuredSourceErrors = new WeakSet<CheckError>();
+
+/** Internal marker for safe failures from declarative payload sources. */
+export function configuredSourceCheckError(stage: "pre" | "post", message: string): CheckError {
+  const error = new CheckError({ stage, message });
+  configuredSourceErrors.add(error);
+  return error;
+}
+
+function isConfiguredSourceCheckError(error: unknown): error is CheckError {
+  return error instanceof CheckError && configuredSourceErrors.has(error);
+}
+
+/** Internal marker used by declarative installation to avoid wrapping checkpoints twice. */
+export function isCheckpointWrapper(value: unknown): boolean {
+  return typeof value === "function" && checkpointWrappers.has(value);
+}
+
+/** Internal marker for wrappers installed by declarative configuration. */
+export function markCheckpointWrapper<T extends object>(value: T): T {
+  checkpointWrappers.add(value);
+  return value;
+}
+
+async function normalizedAction<TArgs extends unknown[]>(
   action: CheckpointOptions<TArgs>["action"], args: TArgs,
-): { kind: ActionKind; target: string | null; command: string | null; cwd: string | null } {
-  const provided = typeof action === "function" ? action(...args) : action;
+): Promise<{ kind: ActionKind; target: string | null; command: string | null; cwd: string | null }> {
+  const provided = typeof action === "function" ? await action(...args) : action;
   const text = (value: string | null | undefined, limit: number): string | null =>
     value == null ? null : value.length > 65_536 ? "[omitted oversized text]" : redactTurnText(value).slice(0, limit);
   return {
@@ -93,9 +127,30 @@ function wrapCheckpoint<TArgs extends unknown[], TResult>(
   return async function (this: unknown, ...args: TArgs): Promise<TResult> {
     const client = options.client ?? defaultClient;
     if (!client.initialized) throw new Error("Norma client is not initialized. Call init() before using a checkpoint.");
+    const clientRevision = client.connectionRevision;
+    const assertConnectionRevision = (stage: "pre" | "post"): void => {
+      if (client.connectionRevision !== clientRevision) {
+        throw new CheckError({ stage, message: `Norma client configuration changed during ${stage} checkpoint; execution was blocked.` });
+      }
+    };
     const name = options.stepName ?? fn.name ?? "anonymous";
     const approvedArgs = client.initialized ? copyCheckpointArguments(args, true) : args;
-    const action = normalizedAction(options.action, approvedArgs);
+    let state: JsonObject | undefined;
+    if (options.state !== undefined) {
+      try {
+        const provided = typeof options.state === "function" ? options.state(...approvedArgs) : options.state;
+        // Copy synchronous values before yielding so caller mutation cannot change the snapshot.
+        state = copyCheckpointState(provided instanceof Promise ? await provided : provided);
+      } catch (error) {
+        // Callback exceptions may contain application secrets; do not echo their messages.
+        if (isConfiguredSourceCheckError(error)) throw error;
+        throw new CheckError({
+          stage: "pre",
+          message: "Norma state capture failed; execution blocked. Supply a plain finite JSON object with safe integers within 32 levels, 10000 nodes and 65536 UTF-8 bytes, or check the state callback.",
+        });
+      }
+    }
+    const action = await normalizedAction(options.action, approvedArgs);
     const started = performance.now();
     let ran = false;
     let completed = false;
@@ -104,23 +159,10 @@ function wrapCheckpoint<TArgs extends unknown[], TResult>(
     try {
     const agentName = client.config?.agentName;
     if (!agentName) throw new Error("Norma client has no agent name.");
-    const targetType = options.targetType ?? client.config?.targetType;
-    const targetId = options.targetId ?? client.config?.targetId;
+    const selectedScope = options.targetScope?.();
+    const targetType = options.targetType ?? selectedScope?.targetType ?? client.config?.targetType;
+    const targetId = options.targetId ?? selectedScope?.targetId ?? client.config?.targetId;
     if (Boolean(targetType) !== Boolean(targetId)) throw new Error("targetType and targetId must be supplied together.");
-    let state: JsonObject | undefined;
-    if (options.state !== undefined) {
-      try {
-        const provided = typeof options.state === "function" ? options.state(...approvedArgs) : options.state;
-        // Copy synchronous values before yielding so caller mutation cannot change the snapshot.
-        state = copyCheckpointState(provided instanceof Promise ? await provided : provided);
-      } catch {
-        // Callback exceptions may contain application secrets; do not echo their messages.
-        throw new CheckError({
-          stage: "pre",
-          message: "Norma state capture failed; execution blocked. Supply a plain finite JSON object with safe integers within 32 levels, 10000 nodes and 65536 UTF-8 bytes, or check the state callback.",
-        });
-      }
-    }
     const step = {
       type: options.stepType ?? "tool",
       name,
@@ -132,28 +174,46 @@ function wrapCheckpoint<TArgs extends unknown[], TResult>(
         norma_argument_shape: "positional",
       },
     };
+    const mappedPre = options.payload ? await options.payload.pre(approvedArgs) : {};
+    // input_from replaces the SDK's positional args envelope; a mapped object is named data even if it has an `args` key.
+    const mappedNamedToolInput = options.stepType !== "llm"
+      && mappedPre.input !== undefined
+      && mappedPre.input !== null
+      && typeof mappedPre.input === "object"
+      && !Array.isArray(mappedPre.input);
     const evaluate = async (stage: "pre" | "post", output?: TResult): Promise<void> => {
+      assertConnectionRevision(stage);
       let result: Decision;
       try {
         result = await client.checks.check({
           targetType,
           targetId,
+          ...options.traceContext?.(),
           stage,
           step: {
             ...step,
-            context: state === undefined ? step.context : { ...step.context, state: copyCheckpointState(state) },
-            output: stage === "post" ? jsonValueSchema.parse(output ?? null) : null,
+            ...mappedPre,
+            context: (mappedPre.context !== undefined || state !== undefined || mappedNamedToolInput)
+              ? { ...(step.context ?? {}), ...(mappedPre.context ?? {}), ...(state === undefined ? {} : { state: copyCheckpointState(state) }),
+                ...(mappedNamedToolInput ? { norma_argument_shape: "named" } : {}) }
+              : step.context,
+            output: stage === "post"
+              ? options.payload ? (await options.payload.post(approvedArgs, output)).output : jsonValueSchema.parse(output ?? null)
+              : null,
           },
         });
       } catch (cause) {
+        if (isConfiguredSourceCheckError(cause)) throw cause;
         throw new CheckError({
           stage, cause,
           message: `Norma check failed during ${stage}; ${stage === "pre" ? "execution blocked" : "action already ran; result blocked"}.`,
         });
       }
+      assertConnectionRevision(stage);
       enforceCheckpointDecision(result, stage);
     };
     await evaluate("pre");
+    assertConnectionRevision("pre");
     const executionArgs = copyCheckpointArguments(approvedArgs, false);
     ran = true;
     output = await fn.apply(this, executionArgs);
@@ -187,5 +247,6 @@ function wrapCheckpoint<TArgs extends unknown[], TResult>(
 export function checkpoint<TArgs extends unknown[], TResult>(
   fn: AsyncFn<TArgs, TResult>, options: CheckpointOptions<TArgs> = {},
 ): AsyncFn<TArgs, TResult> {
-  return wrapCheckpoint(fn, { ...options, client: options.client ?? defaultClient });
+  const wrapped = wrapCheckpoint(fn, { ...options, client: options.client ?? defaultClient });
+  return markCheckpointWrapper(wrapped);
 }

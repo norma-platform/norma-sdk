@@ -32,7 +32,7 @@ import asyncio
 import functools
 import inspect
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Literal, TypedDict, TypeVar
@@ -43,14 +43,16 @@ from norma._checks import (
 from norma._checks import (
     request_remote_check as _request_remote_check,
 )
-from norma._observed_state import StateSource, resolve_observed_state
-from norma._state import state as _session_state
+from norma._instrumentation_values import ConfiguredSourceResolutionError, _TargetArguments
+from norma._observed_state import StateSource, copy_observed_state, resolve_observed_state
+from norma._request_context import current_invocation
+from norma._state import get_state
 from norma._telemetry import get_trace_context_from_provider
 from norma._wire.adapters import feedback_from_wire as _feedback_from_wire
 from norma._wire.exports import (
     CheckResponse as _CheckResponse,
 )
-from norma.client import NormaClient
+from norma.client import NormaClient, new_session_client
 from norma.finish import ActionKind, ActionStatus, _record_decorated_action
 from norma.models import Step, normalize_action, redact_turn_text
 from norma.models.recovery_feedback import RecoveryFeedback
@@ -63,6 +65,26 @@ from norma.observability import (
 from norma.settings import get_settings
 from norma.tracing import _generate_span_id, get_current_trace_id, get_trace_and_span_ids
 from norma.validation import ensure_step_type
+
+
+def _source_failure_message(
+    step_name: str | None,
+    stage: Literal["pre", "post"],
+    field: str,
+    pointer: str,
+    reason: Literal["expected_context_object"] | None = None,
+) -> str:
+    checkpoint_name = step_name or "checkpoint"
+    if reason == "expected_context_object":
+        return (
+            f"Checkpoint '{checkpoint_name}' {stage}-check source '{field}' at {pointer}: "
+            "context_from must resolve to a JSON object; execution blocked."
+        )
+    return (
+        f"Checkpoint '{checkpoint_name}' {stage}-check source '{field}' at {pointer} "
+        "could not be resolved; execution blocked."
+    )
+
 
 logger = get_logger(__name__)
 
@@ -77,6 +99,9 @@ def _resolve_rule_trace_context() -> tuple[str, str]:
     use. Without a provider, keep the existing behavior: share an active trace
     but create a fresh function span for this decorated call.
     """
+    invocation = current_invocation(get_state())
+    if invocation is not None and invocation.trace_ids is not None:
+        return invocation.trace_ids
     provider_context = get_trace_context_from_provider()
     if provider_context is not None:
         return provider_context["trace_id"], provider_context["span_id"]
@@ -111,6 +136,9 @@ class _CheckContext:
     action_target_arg: str | None = None
     action_command_arg: str | None = None
     action_cwd_arg: str | None = None
+    action_metadata: dict[str, Any] | None = None
+    payload_overrides: dict[str, Any] | None = None
+    instrumentation_target_arguments: _TargetArguments | None = None
 
     # Stats (mutually exclusive: errors vs matches vs non_matches)
     total_executions: int = 0
@@ -153,6 +181,9 @@ class _CheckContext:
             action_target_arg=self.action_target_arg,
             action_command_arg=self.action_command_arg,
             action_cwd_arg=self.action_cwd_arg,
+            action_metadata=self.action_metadata,
+            payload_overrides=self.payload_overrides,
+            instrumentation_target_arguments=self.instrumentation_target_arguments,
         )
 
     def post_payload(self, output: Any) -> dict[str, Any]:
@@ -168,6 +199,9 @@ class _CheckContext:
             action_target_arg=self.action_target_arg,
             action_command_arg=self.action_command_arg,
             action_cwd_arg=self.action_cwd_arg,
+            action_metadata=self.action_metadata,
+            payload_overrides=self.payload_overrides,
+            instrumentation_target_arguments=self.instrumentation_target_arguments,
         )
 
     def process_result(
@@ -208,10 +242,13 @@ class _CheckContext:
         for match in result.get("matches") or []:
             self.total_executions += 1
             self.total_matches += 1
-            action = normalize_action(str(
-                "observe" if match.get("mode") == "observe"
-                else match.get("effective_action") or match.get("action", "observe")
-            ))
+            action = normalize_action(
+                str(
+                    "observe"
+                    if match.get("mode") == "observe"
+                    else match.get("effective_action") or match.get("action", "observe")
+                )
+            )
             self.actions[action] = self.actions.get(action, 0) + 1
 
         # Process non-matches (Rules evaluated but didn't match)
@@ -355,7 +392,7 @@ def _get_current_agent() -> Any | None:
 
 def _get_server_url() -> str:
     """Use the initialized session connection before standalone settings."""
-    return _session_state.server_url or get_settings().runtime_url
+    return get_state().server_url or get_settings().runtime_url
 
 
 async def _evaluate(
@@ -370,11 +407,7 @@ async def _evaluate(
 ) -> dict[str, Any]:
     """Check the current hosted Rules before interpreting the remote decision."""
     target_type, target_id = _resolve_session_target(None, None)
-    async with NormaClient(
-        runtime_url=server_url,
-        agent_key=_session_state.api_key,
-        control_contract=_session_state.control_contract,
-    ) as client:
+    async with new_session_client(NormaClient) as client:
         result = await _request_remote_check(
             client,
             agent_name,
@@ -440,23 +473,28 @@ def _extract_input_from_args(func: Callable, args: tuple, kwargs: dict) -> str:
     sig = inspect.signature(func)
     bound = sig.bind(*args, **kwargs)
     bound.apply_defaults()
+    return _extract_input_from_arguments(bound.arguments)
+
+
+def _extract_input_from_arguments(arguments: Mapping[str, object]) -> str:
+    """Choose the LLM input from already bound application parameters."""
 
     # Common input parameter names (in order of preference)
     input_names = ["input", "message", "query", "text", "prompt", "content", "user_input"]
 
     for name in input_names:
-        if name in bound.arguments:
-            value = bound.arguments[name]
+        if name in arguments:
+            value = arguments[name]
             if value is not None:
                 return str(value)
 
     # Fall back to first string argument
-    for param_name, value in bound.arguments.items():
+    for value in arguments.values():
         if isinstance(value, str):
             return value
 
     # Last resort: stringify all arguments
-    return str(bound.arguments)
+    return str(dict(arguments))
 
 
 def _create_checks_payload(
@@ -470,6 +508,9 @@ def _create_checks_payload(
     action_target_arg: str | None = None,
     action_command_arg: str | None = None,
     action_cwd_arg: str | None = None,
+    action_metadata: dict[str, Any] | None = None,
+    payload_overrides: dict[str, Any] | None = None,
+    instrumentation_target_arguments: _TargetArguments | None = None,
 ) -> dict[str, Any]:
     """
     Create check payload for server, detecting if it's a tool step or LLM step.
@@ -487,6 +528,8 @@ def _create_checks_payload(
     sig = inspect.signature(func)
     bound = sig.bind(*args, **kwargs)
     bound.apply_defaults()
+    if instrumentation_target_arguments is not None:
+        bound.arguments = instrumentation_target_arguments.application_arguments(bound.arguments)
 
     # Determine step name priority: explicit step_name > tool_name > func.__name__
     if step_name:
@@ -515,7 +558,7 @@ def _create_checks_payload(
         # Custom step types use the complete bound argument mapping. Unlike an
         # LLM step, there is no generic convention for selecting one argument
         # as the prompt/input for a retriever, trace, session, etc.
-        return {
+        payload = {
             "type": step_type,
             "name": determined_name,
             "input": dict(bound.arguments),
@@ -524,6 +567,7 @@ def _create_checks_payload(
             else (None if output is None else str(output)),
             "context": {"norma_argument_shape": "named"},
         }
+        return _apply_payload_overrides(payload, payload_overrides)
 
     if step_type == "tool":
         # This is a tool step
@@ -531,7 +575,38 @@ def _create_checks_payload(
             value = bound.arguments.get(arg) if arg is not None else None
             return redact_turn_text(value)[:limit] if isinstance(value, str) else None
 
-        return {
+        resolved_action = None
+        if action_metadata is not None:
+            kind = action_metadata.get("kind", "other")
+            if kind not in {"shell", "edit", "read", "search", "web", "mcp", "task", "other"}:
+                raise ValueError("Invalid instrumentation action kind")
+
+            def metadata_text(key: str, limit: int) -> str | None:
+                value = action_metadata.get(key)
+                return redact_turn_text(value)[:limit] if isinstance(value, str) else None
+
+            target = metadata_text("target", 300)
+            if kind not in {"shell", "edit"} and target is None:
+                target = redact_turn_text(str(determined_name))[:300]
+            resolved_action = {
+                "kind": kind,
+                "target": target,
+                "command": metadata_text("command", 500),
+                "cwd": metadata_text("cwd", 300),
+            }
+        else:
+            resolved_action = {
+                "kind": action_kind or "other",
+                "target": bound_text(action_target_arg, 300)
+                if action_kind in {"shell", "edit"}
+                else (
+                    bound_text(action_target_arg, 300)
+                    or redact_turn_text(str(determined_name))[:300]
+                ),
+                "command": bound_text(action_command_arg, 500),
+                "cwd": bound_text(action_cwd_arg, 300),
+            }
+        payload = {
             "type": step_type,
             "name": determined_name,
             "input": dict(bound.arguments),
@@ -540,23 +615,17 @@ def _create_checks_payload(
             else (None if output is None else str(output)),
             "context": {
                 "norma_argument_shape": "named",
-                "norma_action": {
-                    "kind": action_kind or "other",
-                    "target": bound_text(action_target_arg, 300)
-                    if action_kind in {"shell", "edit"}
-                    else (
-                        bound_text(action_target_arg, 300)
-                        or redact_turn_text(str(determined_name))[:300]
-                    ),
-                    "command": bound_text(action_command_arg, 500),
-                    "cwd": bound_text(action_cwd_arg, 300),
-                },
+                "norma_action": resolved_action,
             },
         }
+        return _apply_payload_overrides(payload, payload_overrides)
 
     # This is an LLM step
-    input_data = _extract_input_from_args(func, args, kwargs)
-    return {
+    if instrumentation_target_arguments is not None:
+        input_data = _extract_input_from_arguments(bound.arguments)
+    else:
+        input_data = _extract_input_from_args(func, args, kwargs)
+    payload = {
         "type": step_type,
         "name": determined_name,
         "input": input_data,
@@ -564,6 +633,25 @@ def _create_checks_payload(
         if isinstance(output, (str, int, float, bool, dict, list))
         else (None if output is None else str(output)),
     }
+    return _apply_payload_overrides(payload, payload_overrides)
+
+
+def _apply_payload_overrides(
+    payload: dict[str, Any], overrides: dict[str, Any] | None
+) -> dict[str, Any]:
+    if overrides is None:
+        return payload
+    for key in ("input", "output", "tools", "ground_truth"):
+        if key in overrides:
+            payload[key] = deepcopy(overrides[key])
+    context = overrides.get("context")
+    if context is not None:
+        existing = payload.get("context")
+        if not isinstance(existing, dict):
+            existing = {}
+        existing.update(deepcopy(context))
+        payload["context"] = existing
+    return payload
 
 
 def _handle_checks_result(
@@ -575,16 +663,22 @@ def _handle_checks_result(
         raise RuntimeError("Rule check did not return a valid safety decision")
 
     allowed = result["allowed"]
-    matches = [item for item in result.get("matches") or []
-               if not isinstance(item, dict) or item.get("mode", "enforce") != "observe"]
+    matches = [
+        item
+        for item in result.get("matches") or []
+        if not isinstance(item, dict) or item.get("mode", "enforce") != "observe"
+    ]
     # Keep uncertainty separate on the wire but apply its explicitly chosen action.
     matches.extend(
         {**item, "action": item.get("effective_action") or item.get("action") or "deny"}
         for item in result.get("unresolved") or []
         if isinstance(item, dict) and item.get("mode", "enforce") != "observe"
     )
-    errors = [item for item in result.get("errors") or []
-              if not isinstance(item, dict) or item.get("mode", "enforce") != "observe"]
+    errors = [
+        item
+        for item in result.get("errors") or []
+        if not isinstance(item, dict) or item.get("mode", "enforce") != "observe"
+    ]
     # Reported evaluator failures block regardless of the response bucket.
     errors.extend(
         item
@@ -696,10 +790,13 @@ def _handle_checks_result(
         if not isinstance(match, dict):
             continue
 
-        action = normalize_action(str(
-                "observe" if match.get("mode") == "observe"
+        action = normalize_action(
+            str(
+                "observe"
+                if match.get("mode") == "observe"
                 else match.get("effective_action") or match.get("action", "observe")
-            ))
+            )
+        )
         if action != "observe":
             continue
 
@@ -763,9 +860,9 @@ def _log_single_rule(
 
 def _get_server_rules() -> list[dict[str, Any]] | None:
     """Get the cached server Rules from norma module."""
-    if _session_state.current_agent is not None:
-        return _session_state.require_rule_cache()
-    return _session_state.server_rules
+    if get_state().current_agent is not None:
+        return get_state().require_rule_cache()
+    return get_state().server_rules
 
 
 async def _execute_with_rule(
@@ -780,6 +877,11 @@ async def _execute_with_rule(
     action_command_arg: str | None = None,
     action_cwd_arg: str | None = None,
     state: StateSource | None = None,
+    instrumentation_resolver: Callable[..., Any] | None = None,
+    instrumentation_post_resolver: Callable[..., Any] | None = None,
+    instrumentation_source_paths: dict[str, str] | None = None,
+    instrumentation_input_schema: Any | None = None,
+    instrumentation_target_arguments: _TargetArguments | None = None,
 ) -> Any:
     """
     Core Rule execution logic for both async and sync functions.
@@ -807,6 +909,10 @@ async def _execute_with_rule(
         RuleSteerError: If any Rule triggers with "steer" action
         RuntimeError: If Rule check fails unexpectedly
     """
+    session_state = get_state()
+    if session_state.closed:
+        raise CheckError("Configured Norma session is closed; checkpoint execution blocked.")
+    session_generation = session_state.session_generation
     agent = _get_current_agent()
     if agent is None:
         raise CheckError(
@@ -814,7 +920,7 @@ async def _execute_with_rule(
             "Call norma.init() successfully before running the agent."
         )
 
-    session_bound = _session_state.current_agent is agent
+    session_bound = session_state.current_agent is agent
 
     # Detach caller-owned nested values before the first asynchronous check.
     # Keep an instance/class method receiver: copying it would execute against a
@@ -823,26 +929,111 @@ async def _execute_with_rule(
     signature = inspect.signature(func)
     bound = signature.bind(*args, **kwargs)
     bound.apply_defaults()
-    first_parameter = next(iter(signature.parameters), None)
+    original_call_args = args
+    original_call_kwargs = kwargs
     memo = {}
-    if first_parameter in {"self", "cls"} and first_parameter in bound.arguments:
-        receiver = bound.arguments[first_parameter]
+    if instrumentation_target_arguments is not None:
+        receiver = instrumentation_target_arguments.receiver(bound.arguments)
+    else:
+        first_parameter = next(iter(signature.parameters), None)
+        receiver = (
+            bound.arguments.get(first_parameter) if first_parameter in {"self", "cls"} else None
+        )
+    if receiver is not None:
         memo[id(receiver)] = receiver
     try:
+        invocation_args, invocation_kwargs = deepcopy(
+            (original_call_args, original_call_kwargs), memo
+        )
         bound.arguments = deepcopy(bound.arguments, memo)
     except Exception as exc:
         raise RuntimeError("Rule arguments could not be copied; execution blocked") from exc
     args, kwargs = bound.args, bound.kwargs
+    application_args, application_kwargs = args, kwargs
+    if instrumentation_target_arguments is not None:
+        application_args, application_kwargs = instrumentation_target_arguments.application_call(
+            args, kwargs
+        )
 
     # Resolve application state once. The provider receives a separate argument
     # copy so mutating it cannot change the action approved by the checkpoint.
     observed_state = None
+    action_metadata: dict[str, Any] | None = None
+    parameter_snapshot: dict[str, object] | None = None
+    selected_invocation = current_invocation(session_state)
+    entry_context = selected_invocation.context if selected_invocation is not None else None
+    if instrumentation_resolver is not None:
+        try:
+            invocation: dict[str, object] = {
+                "args": invocation_args,
+                "kwargs": invocation_kwargs,
+                "result": None,
+                "error": None,
+                "context": entry_context,
+                "agent_name": agent.agent_name,
+            }
+            resolved = instrumentation_resolver(invocation)
+            if inspect.isawaitable(resolved):
+                resolved = await resolved
+            if not isinstance(resolved, dict):
+                raise ValueError("Invalid v2 checkpoint source result")
+            raw_parameter_snapshot = resolved.get("_parameter_snapshot")
+            if raw_parameter_snapshot is not None:
+                if type(raw_parameter_snapshot) is not dict:
+                    raise ValueError("Invalid v2 checkpoint parameter snapshot")
+                parameter_snapshot = raw_parameter_snapshot
+            raw_state = resolved.get("state")
+            if raw_state is not None:
+                observed_state = copy_observed_state(raw_state)
+            raw_action = resolved.get("action")
+            if raw_action is not None:
+                if not isinstance(raw_action, dict):
+                    raise ValueError("Invalid v2 checkpoint action result")
+                action_metadata = raw_action
+            raw_payload_overrides = resolved.get("payload")
+            if raw_payload_overrides is not None:
+                if not isinstance(raw_payload_overrides, dict):
+                    raise ValueError("Invalid v2 checkpoint payload mapping")
+                payload_overrides = raw_payload_overrides
+            else:
+                payload_overrides = None
+        except ConfiguredSourceResolutionError as exc:
+            raise CheckError(
+                _source_failure_message(
+                    step_name, "pre", exc.field, exc.pointer, reason=exc.reason
+                ),
+                stage="pre",
+            ) from None
+        except Exception:
+            raise CheckError(
+                "Checkpoint sources could not be resolved; execution blocked.", stage="pre"
+            ) from None
+    else:
+        payload_overrides = None
     if state is not None:
         try:
-            state_args, state_kwargs = deepcopy((args, kwargs), memo)
+            state_args, state_kwargs = deepcopy((application_args, application_kwargs), memo)
             observed_state = await resolve_observed_state(state, state_args, state_kwargs)
+        except ConfiguredSourceResolutionError as exc:
+            raise CheckError(
+                _source_failure_message(
+                    step_name, "pre", exc.field, exc.pointer, reason=exc.reason
+                ),
+                stage="pre",
+            ) from None
         except Exception:
             # Provider exceptions can contain credentials or application objects.
+            source_path = (instrumentation_source_paths or {}).get("state")
+            if source_path is not None:
+                raise CheckError(
+                    _source_failure_message(
+                        step_name,
+                        "pre",
+                        source_path.rsplit("/", 1)[-1],
+                        source_path,
+                    ),
+                    stage="pre",
+                ) from None
             raise CheckError(
                 "Checkpoint state could not be captured as bounded JSON; execution blocked.",
                 stage="pre",
@@ -868,6 +1059,9 @@ async def _execute_with_rule(
         action_target_arg=action_target_arg,
         action_command_arg=action_command_arg,
         action_cwd_arg=action_cwd_arg,
+        action_metadata=action_metadata,
+        payload_overrides=payload_overrides,
+        instrumentation_target_arguments=instrumentation_target_arguments,
     )
     ctx.log_start()
 
@@ -882,9 +1076,32 @@ async def _execute_with_rule(
         pre_payload = deepcopy(ctx.pre_payload())
         if observed_state is not None:
             pre_payload.setdefault("context", {})["state"] = deepcopy(observed_state)
+        if instrumentation_input_schema is not None:
+            instance_path = instrumentation_input_schema.validate(pre_payload.get("input"))
+            if instance_path is not None:
+                config_path = (
+                    "/checkpoints/"
+                    + str(step_name).replace("~", "~0").replace("/", "~1")
+                    + "/input_schema"
+                )
+                raise CheckError(
+                    f"Checkpoint '{step_name}' input does not match schema at {config_path} "
+                    f"(instance at {instance_path or '/'}).",
+                    stage="pre",
+                )
         await _run_rule_check(ctx, "pre", deepcopy(pre_payload), rules)
 
-        if session_bound and _session_state.current_agent is not agent:
+        if (
+            session_state.closed
+            or session_state.session_generation != session_generation
+            or get_state() is not session_state
+        ):
+            raise CheckError(
+                "Norma session changed during the check; execution blocked. "
+                "Initialize successfully and check the action again."
+            )
+
+        if session_bound and get_state().current_agent is not agent:
             raise CheckError(
                 "Norma session changed during the check; execution blocked. "
                 "Initialize successfully and check the action again."
@@ -892,8 +1109,8 @@ async def _execute_with_rule(
 
         # A refresh can fail while the precheck is awaiting the runtime. Do not
         # execute with newly unknown local coverage after that failure.
-        if _session_state.current_agent is not None:
-            _session_state.require_rule_cache()
+        if get_state().current_agent is not None:
+            get_state().require_rule_cache()
 
         # Execute the function
         ran = True
@@ -903,6 +1120,39 @@ async def _execute_with_rule(
             output = func(*args, **kwargs)
         completed = True
         action_status = "succeeded"
+
+        if instrumentation_post_resolver is not None:
+            try:
+                post_invocation = {
+                    "args": invocation_args,
+                    "kwargs": invocation_kwargs,
+                    "result": deepcopy(output),
+                    "error": None,
+                    "context": entry_context,
+                    "agent_name": agent.agent_name,
+                }
+                post_values = instrumentation_post_resolver(post_invocation, parameter_snapshot)
+                if inspect.isawaitable(post_values):
+                    post_values = await post_values
+                if not isinstance(post_values, dict):
+                    raise ValueError("Invalid v2 checkpoint post mapping")
+                if "output" in post_values:
+                    ctx.payload_overrides = {
+                        **(ctx.payload_overrides or {}),
+                        "output": copy_observed_state({"value": post_values["output"]})["value"],
+                    }
+            except ConfiguredSourceResolutionError as exc:
+                raise CheckError(
+                    _source_failure_message(
+                        step_name, "post", exc.field, exc.pointer, reason=exc.reason
+                    ),
+                    stage="post",
+                ) from None
+            except Exception:
+                raise CheckError(
+                    "Checkpoint output mapping failed after action execution; result blocked.",
+                    stage="post",
+                ) from None
 
         # POST-EXECUTION: Check Rules with check_stage="post"
         post_payload = ctx.post_payload(output)
@@ -950,6 +1200,11 @@ def _checkpoint_decorator(
     action_command_arg: str | None = None,
     action_cwd_arg: str | None = None,
     state: StateSource | None = None,
+    instrumentation_resolver: Callable[..., Any] | None = None,
+    instrumentation_post_resolver: Callable[..., Any] | None = None,
+    instrumentation_source_paths: dict[str, str] | None = None,
+    instrumentation_input_schema: Any | None = None,
+    instrumentation_target_arguments: _TargetArguments | None = None,
 ) -> Callable[[F], F]:
     """Implement checkpoint wrapping; initialization and remote checks are mandatory.
 
@@ -969,7 +1224,13 @@ def _checkpoint_decorator(
         # Register this function's step schema for auto-discovery by init()
         from norma._rule_registry import register
 
-        register(func, policy=policy, step_type=step_type, step_name=step_name)
+        register(
+            func,
+            policy=policy,
+            step_type=step_type,
+            step_name=step_name,
+            instrumentation_target_arguments=instrumentation_target_arguments,
+        )
 
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -985,6 +1246,11 @@ def _checkpoint_decorator(
                 action_command_arg=action_command_arg,
                 action_cwd_arg=action_cwd_arg,
                 state=state,
+                instrumentation_resolver=instrumentation_resolver,
+                instrumentation_post_resolver=instrumentation_post_resolver,
+                instrumentation_source_paths=instrumentation_source_paths,
+                instrumentation_input_schema=instrumentation_input_schema,
+                instrumentation_target_arguments=instrumentation_target_arguments,
             )
 
         # Copy over ALL attributes from the original function (important for LangChain tools)
@@ -1010,11 +1276,18 @@ def _checkpoint_decorator(
                     action_command_arg=action_command_arg,
                     action_cwd_arg=action_cwd_arg,
                     state=state,
+                    instrumentation_resolver=instrumentation_resolver,
+                    instrumentation_post_resolver=instrumentation_post_resolver,
+                    instrumentation_source_paths=instrumentation_source_paths,
+                    instrumentation_input_schema=instrumentation_input_schema,
+                    instrumentation_target_arguments=instrumentation_target_arguments,
                 )
             )
 
         if inspect.iscoroutinefunction(func):
+            setattr(async_wrapper, "__norma_checkpoint_wrapper__", True)
             return async_wrapper  # type: ignore
+        setattr(sync_wrapper, "__norma_checkpoint_wrapper__", True)
         return sync_wrapper  # type: ignore
 
     return decorator
@@ -1029,6 +1302,11 @@ def checkpoint(
     action_command_arg: str | None = None,
     action_cwd_arg: str | None = None,
     state: StateSource | None = None,
+    _instrumentation_resolver: Callable[..., Any] | None = None,
+    _instrumentation_post_resolver: Callable[..., Any] | None = None,
+    _instrumentation_source_paths: dict[str, str] | None = None,
+    _instrumentation_input_schema: Any | None = None,
+    _instrumentation_target_arguments: _TargetArguments | None = None,
 ) -> Callable[[F], F]:
     """Mark a Rule checkpoint; block execution until initialization succeeds.
 
@@ -1050,16 +1328,23 @@ def checkpoint(
         action_command_arg=action_command_arg,
         action_cwd_arg=action_cwd_arg,
         state=state,
+        instrumentation_resolver=_instrumentation_resolver,
+        instrumentation_post_resolver=_instrumentation_post_resolver,
+        instrumentation_source_paths=_instrumentation_source_paths,
+        instrumentation_input_schema=_instrumentation_input_schema,
+        instrumentation_target_arguments=_instrumentation_target_arguments,
     )
 
     def require_ready() -> None:
-        if _session_state.current_agent is None:
+        if get_state().closed:
+            raise CheckError("Configured Norma session is closed; checkpoint execution blocked.")
+        if get_state().current_agent is None:
             raise CheckError(
                 "Norma is not initialized; checkpoint execution blocked. "
                 "Call norma.init() successfully before running the agent."
             )
         try:
-            _session_state.require_rule_cache()
+            get_state().require_rule_cache()
         except RuntimeError as exc:
             raise CheckError(str(exc)) from exc
 
@@ -1072,6 +1357,7 @@ def checkpoint(
                 require_ready()
                 return await guarded(*args, **kwargs)
 
+            setattr(async_wrapper, "__norma_checkpoint_wrapper__", True)
             return async_wrapper  # type: ignore[return-value]
 
         @functools.wraps(guarded)
@@ -1079,6 +1365,7 @@ def checkpoint(
             require_ready()
             return guarded(*args, **kwargs)
 
+        setattr(sync_wrapper, "__norma_checkpoint_wrapper__", True)
         return sync_wrapper  # type: ignore[return-value]
 
     return decorator

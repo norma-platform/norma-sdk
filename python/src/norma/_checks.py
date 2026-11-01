@@ -7,7 +7,9 @@ from typing import Any, Literal
 import httpx
 
 from ._check_events import build_rule_check_events, enqueue_observability_events
-from ._state import state
+from ._observed_state import copy_observed_state
+from ._request_context import current_invocation
+from ._state import get_state
 from ._wire.exports import (
     CheckRequest,
     CheckResponse,
@@ -18,7 +20,7 @@ from ._wire.exports import (
     RuleDefinitionRuntime,
     Step,
 )
-from .client import NormaClient
+from .client import NormaClient, new_session_client
 from .errors import raise_for_norma_status
 from .observability import get_logger, is_observability_enabled
 from .tracing import get_trace_and_span_ids
@@ -37,11 +39,20 @@ def _resolve_session_target(
     target_type: str | None, target_id: str | None
 ) -> tuple[str | None, str | None]:
     """Resolve the session target and reject accidental cross-target check."""
+    invocation = current_invocation(get_state())
+    if invocation is not None:
+        selected_type, selected_id = invocation.target_type, invocation.target_id
+        if target_type is None and target_id is None:
+            return selected_type, selected_id
+        _validate_target_pair(target_type, target_id)
+        if target_type != selected_type or target_id != selected_id:
+            raise ValueError("Per-call target context must match the active configured invocation")
+        return selected_type, selected_id
     if target_type is None and target_id is None:
-        return state.target_type, state.target_id
+        return get_state().target_type, get_state().target_id
     _validate_target_pair(target_type, target_id)
-    if state.current_agent is not None and (
-        target_type != state.target_type or target_id != state.target_id
+    if get_state().current_agent is not None and (
+        target_type != get_state().target_type or target_id != get_state().target_id
     ):
         raise ValueError(
             "Per-call target context must match the target context fixed at "
@@ -256,7 +267,21 @@ async def evaluate_rules(
     """
     step_type = ensure_step_type(step_type)
 
-    if state.server_url is None:
+    session_state = get_state()
+    invocation = current_invocation(session_state)
+    if invocation is not None:
+        if context is None:
+            context = invocation.context
+        elif invocation.context:
+            merged_context = copy_observed_state(invocation.context)
+            if type(context) is not dict:
+                raise ValueError("Rule context must be a JSON object")
+            merged_context.update(copy_observed_state(context))
+            context = merged_context
+    configured_session = session_state.configured_agent_name is not None
+    session_generation = session_state.session_generation
+    session_agent = session_state.current_agent
+    if session_state.server_url is None:
         raise RuntimeError("Server URL not configured. Call norma.init() first.")
 
     target_type, target_id = _resolve_session_target(target_type, target_id)
@@ -277,14 +302,12 @@ async def evaluate_rules(
 
     step_obj = Step(**step_dict)  # type: ignore[arg-type]
     resolved_rules = (
-        state.require_rule_cache() if state.current_agent is not None else state.server_rules or []
+        session_state.require_rule_cache()
+        if session_state.current_agent is not None
+        else session_state.server_rules or []
     )
 
-    async with NormaClient(
-        runtime_url=state.server_url,
-        agent_key=state.api_key,
-        control_contract=state.control_contract,
-    ) as client:
+    async with new_session_client(NormaClient) as client:
         result = await request_remote_check(
             client=client,
             agent_name=agent_name,
@@ -297,6 +320,16 @@ async def evaluate_rules(
             span_id=span_id,
             event_agent_name=agent_name,
         )
-        if state.current_agent is not None:
-            state.require_rule_cache()
+        current = get_state()
+        if configured_session and (
+            current is not session_state
+            or session_state.closed
+            or session_state.session_generation != session_generation
+            or session_state.current_agent is not session_agent
+        ):
+            raise RuntimeError(
+                "Configured Norma session changed during the check; execution blocked."
+            )
+        if current.current_agent is not None:
+            current.require_rule_cache()
         return result

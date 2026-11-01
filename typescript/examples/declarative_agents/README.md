@@ -1,0 +1,11 @@
+# Two-agent declarative instrumentation
+
+This example loads `norma-agents/` once at startup. The support and billing files bind separate existing Norma identities to the same async `tools.send_message` function. Each entrypoint selects its own identity and request context, including the request's `customer_id`, records the final application result with the existing finish check, and reports a held verdict without rerunning the application function. It leaves `target_scope` unset so the standard Agent Key uses its configured agent scope.
+
+The sample creates a fresh session ID for each run and a fresh turn ID for each request. Keep session and turn IDs stable across continuations of that logical turn. An exact finish retry resends identical recorded `TurnRecord` evidence; rerunning application work is not an exact retry. Use a new turn ID for a new request. A new ID does not continue a held result.
+
+Rename each file so its stem exactly matches a registered lowercase agent name that the configured key can access. Set `NORMA_RUNTIME_URL` and `NORMA_AGENT_KEY` in the server environment, install the local SDK artifact described in the TypeScript setup guide, then run `app.ts` with your TypeScript runner. The example uses the environment connection for both agents. If each identity has separate credentials, pass a `connections` map keyed by each exact file stem and read secrets from your secret manager.
+
+Create or select both agent identities in Console and attach the Rules you want before running the application. Startup performs authenticated identity and enabled-Rule reads. It does not create identities, publish schemas, or attach Rules. Calls proceed when no enabled matching Rule blocks them. A precheck deny or steer prevents the tool call. A finish hold raises `FinishHeldError`; TypeScript exposes the application result as `error.result` and the verdict as `error.verdict`. The example logs the verdict and does not retry the entrypoint.
+
+The example's message function returns a Promise and the application awaits it. TypeScript cannot safely infer that a non-async function returns a Promise without running it, so a regular Promise-returning function in a configured checkpoint or turn entrypoint must declare `returns: "promise"` in its v2 config.

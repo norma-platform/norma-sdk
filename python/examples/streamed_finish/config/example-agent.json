@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "entrypoints": [
+    {
+      "target": "application.stream_reply",
+      "turn": {
+        "session_id": {"path": ["args", 0, "session_id"]},
+        "turn_id": {"path": ["args", 0, "turn_id"]},
+        "finish": {"stream": {}, "on_hold": "raise"}
+      }
+    }
+  ],
+  "checkpoints": {},
+  "connection": {
+    "runtime_url": {"env": "NORMA_RUNTIME_URL"},
+    "agent_key": {"env": "NORMA_AGENT_KEY"}
+  },
+  "telemetry": {"enabled": false},
+  "refresh": {"interval_seconds": 0}
+}

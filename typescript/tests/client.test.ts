@@ -64,6 +64,24 @@ describe("hosted configuration", () => {
     expect(requests).toHaveLength(1);
     expect(requests[0].headers.get("X-Norma-Control-Contract")).toBe("rule-controls-v1");
   });
+  it("normalizes the friendly control contract input to the existing wire token", async () => {
+    const requests: Request[] = [];
+    const httpClient = new HTTPClient({ fetcher: async request => {
+      requests.push(request);
+      return new Response(JSON.stringify({
+        execution_contract: "hosted-v1", control_contract: "rule-controls-v1", allowed: true, confidence: 1,
+      }), { headers: { "content-type": "application/json", "X-Norma-Control-Contract": "rule-controls-v1" } });
+    } });
+    const client = new NormaClient();
+    client.init({ agentName: "app", agentKey: "synthetic", runtimeUrl: "https://tenant.example", httpClient, controlContract: "rule-controls" });
+
+    await expect(client.checks.check({ stage: "pre", step: { type: "tool", name: "read", input: {} } }))
+      .resolves.toMatchObject({ allowed: true });
+
+    expect(client.config?.controlContract).toBe("rule-controls-v1");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.headers.get("X-Norma-Control-Contract")).toBe("rule-controls-v1");
+  });
   it("keeps the control contract disabled by default", async () => {
     const requests: Request[]=[];
     const httpClient=new HTTPClient({fetcher:async request => {

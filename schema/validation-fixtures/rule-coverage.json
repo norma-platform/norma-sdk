@@ -1,0 +1,2314 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "literal-input-path-covered",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "literal-input-path-missing",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"subject\":\"Hello\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "missing"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "missing"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "provider-input-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"provider\":\"app.current_input\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "provider-input-unknown-allowed",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"provider\":\"app.current_input\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "allow_unknown": true,
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": false,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": false,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "python-all-kwargs-has-unknown-keys",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":\"all_kwargs\"}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "capability",
+              "path": "/checkpoints/send/input_from"
+            },
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unmapped-typescript-input-args-envelope",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\"}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.args\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.args",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.args",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "compound-condition-recurses-all-branches",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\",\"body\":\"Hi\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"and\":[{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},{\"not\":{\"selector\":{\"path\":\"input.body\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}}}]},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/and/0/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/and/1/not/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.body",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/and/0/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/and/1/not/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.body",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "malformed-rule-shape-fails",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\": [{\"name\": \"bad\", \"condition\": {\"selector\": {\"path\": 3}, \"evaluator\": {\"name\": \"json\", \"config\": {}}}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": []
+        }
+      }
+    },
+    {
+      "name": "exact-name-scope-applies",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"scope\":{\"step_names\":[\"send\"],\"step_name_regex\":\"never\",\"stages\":[\"pre\"]},\"condition\":{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "regex-scope-is-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"scope\":{\"step_name_regex\":\"send.*\",\"stages\":[\"pre\"]},\"condition\":{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/scope"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/scope",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "*",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/scope"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/scope",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "*",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unrestricted-rule-covers-pre-and-post",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "post",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "post",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "entrypoint-context-is-partial",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"context\":{\"value\":{\"channel\":\"web\"}}}],\"checkpoints\":{\"send\":{\"target\":\"app.send\"}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"enabled\":true,\"condition\":{\"selector\":{\"path\":\"context.request_id\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "context.request_id",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "context.request_id",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "ordinary-selector-ending-at-null-is-covered",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":null}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"enabled\":true,\"condition\":{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "disabled-rule-is-skipped",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"enabled\":false,\"condition\":{\"selector\":{\"path\":\"input.to\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": []
+        }
+      }
+    },
+    {
+      "name": "rego-evaluator-is-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"coverage-rule\",\"enabled\":true,\"condition\":{\"evaluator\":{\"name\":\"rego\",\"config\":{\"source\":\"package checks\\nallow := true\"}},\"selector\":{\"path\":\"input.to\"}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "*",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "*",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "semantic-empty-bindings-is-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"coverage-rule\",\"enabled\":true,\"condition\":{\"evaluator\":{\"name\":\"semantic\",\"config\":{\"bindings\":[]}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "*",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "*",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "json-required-null-is-missing",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":null}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"coverage-rule\",\"enabled\":true,\"condition\":{\"evaluator\":{\"name\":\"json\",\"config\":{\"required_fields\":[\"to\"]}},\"selector\":{\"path\":\"input\"}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/required_fields/0"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/required_fields/0"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "json-required-null-allowed",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":null}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"coverage-rule\",\"enabled\":true,\"condition\":{\"evaluator\":{\"name\":\"json\",\"config\":{\"required_fields\":[\"to\"],\"allow_null_required\":true}},\"selector\":{\"path\":\"input\"}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "inline-state-binding-is-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"options\":{\"state\":{\"binding\":\"app.state\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"coverage-rule\",\"enabled\":true,\"condition\":{\"evaluator\":{\"name\":\"json\",\"config\":{}},\"selector\":{\"path\":\"context.state.balance\"}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "context.state.balance",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "context.state.balance",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "nullable-scope-means-unrestricted",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"value\":{\"to\":\"person@example.test\"}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"coverage-rule\",\"enabled\":true,\"condition\":{\"evaluator\":{\"name\":\"json\",\"config\":{}},\"selector\":{\"path\":\"input.to\"}},\"scope\":{\"step_types\":null,\"step_names\":null,\"stages\":null,\"step_name_regex\":null}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "post",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.to",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "post",
+              "selector": "input.to",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "dynamic-state-from-makes-context-state-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state_from\":{\"provider\":\"app.current_state\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"state-check\",\"condition\":{\"selector\":{\"path\":\"context.state.balance\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "context.state.balance",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "context.state.balance",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "typescript-all-params-unknown-supplied-slot",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":\"all_params\",\"parameter_names\":[\"recipient\",\"subject\",\"body\"]}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "capability",
+              "path": "/checkpoints/send/input_from"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "typescript-all-params-unknown-allowed",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":\"all_params\",\"parameter_names\":[\"recipient\",\"subject\",\"body\"]}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "allow_unknown": true,
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "capability",
+              "path": "/checkpoints/send/input_from"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": false,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "typescript-all-params-requires-declared-names",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":\"all_params\"}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "capability",
+              "path": "/checkpoints/send/input_from"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "selector",
+              "path": "/checkpoints/send/input_from"
+            }
+          ],
+          "coverage": []
+        }
+      }
+    },
+    {
+      "name": "typescript-all-params-empty-names-proves-empty-object",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"parameter_names\":[],\"input_from\":\"all_params\"}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"recipient-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "capability",
+              "path": "/checkpoints/send/input_from"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "missing"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-required-typed-dynamic-path-covered",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-optional-property-remains-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"recipient\":{\"type\":\"string\"}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-nullable-terminal-ordinary-selector-covered",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"subject\"],\"properties\":{\"subject\":{\"type\":[\"string\",\"null\"]}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.subject\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-nullable-json-required-field-is-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"subject\"],\"properties\":{\"subject\":{\"type\":[\"string\",\"null\"]}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"required_fields\":[\"subject\"]}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator/config/required_fields/0"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator/config/required_fields/0"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-null-json-required-field-is-missing",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"subject\"],\"properties\":{\"subject\":{\"type\":\"null\"}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"required_fields\":[\"subject\"]}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/required_fields/0"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/required_fields/0"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-closed-object-forbids-undeclared-path",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"recipient\":{\"type\":\"string\"}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.unknown\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.unknown",
+              "status": "missing"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.unknown",
+              "status": "missing"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-local-json-pointer-reference-covers-path",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$ref\":\"#/definitions/request\",\"definitions\":{\"request\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-empty-schema-leaves-path-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-literal-missing-path-remains-missing",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"recipient\":{\"type\":\"string\"}}},\"input_from\":{\"value\":{}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "missing"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "missing"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-does-not-replace-typescript-default-args-envelope",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input.recipient\"},\"evaluator\":{\"name\":\"json\",\"config\":{}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/selector/path"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.recipient",
+              "status": "missing"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "input-schema-null-required-allowed-explicitly",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"subject\"],\"properties\":{\"subject\":{\"type\":[\"string\",\"null\"]}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"required_fields\":[\"subject\"],\"allow_null_required\":true}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.subject",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "field-types-dotted-present",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"person\"],\"properties\":{\"person\":{\"type\":\"object\",\"required\":[\"name\"],\"properties\":{\"name\":{\"type\":\"string\"}}}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_types\":{\"person.name\":\"string\"}}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "field-types-dotted-missing",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_types\":{\"person.name\":\"string\"}}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/field_types/person.name"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/field_types/person.name"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "field-constraints-dotted-present",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"person\"],\"properties\":{\"person\":{\"type\":\"object\",\"required\":[\"name\"],\"properties\":{\"name\":{\"type\":\"string\"}}}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"person.name\":{\"min\":1}}}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "field-constraints-dotted-missing",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"person.name\":{\"min\":1}}}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/field_constraints/person.name"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_missing",
+              "path": "/rules/0/condition/evaluator/config/field_constraints/person.name"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/person.name",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.person.name",
+              "status": "missing"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "controlled-batch-size-input-schema-covered",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"application.run\"],\"checkpoints\":{\"submit_batch\":{\"target\":\"tools.submit_batch\",\"step_type\":\"tool\",\"input_from\":{\"path\":[\"input\"]},\"input_schema\":{\"type\":\"object\",\"required\":[\"batch_size\"],\"properties\":{\"batch_size\":{\"type\":\"integer\"}}}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"batch-size-control\",\"enabled\":true,\"scope\":{\"step_types\":[\"tool\"],\"step_names\":[\"submit_batch\"],\"stages\":[\"pre\"]},\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"required_fields\":[\"batch_size\"],\"field_types\":{\"batch_size\":\"integer\"},\"field_constraints\":{\"batch_size\":{\"min\":1,\"max\":{\"$param\":\"max_batch_size\"}}}}}},\"action\":{\"decision\":\"deny\"},\"controls\":{\"max_batch_size\":{\"type\":\"number\",\"integer\":true,\"label\":\"Maximum batch size\",\"default\":100,\"minimum\":1,\"maximum\":1000}}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/batch_size",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input.batch_size",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/batch_size",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input.batch_size",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input.batch_size",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": true,
+          "coverage_complete": true,
+          "diagnostics": [],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/batch_size",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input.batch_size",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/batch_size",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input.batch_size",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/required_fields/0",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input.batch_size",
+              "status": "covered"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "submit_batch",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "field-map-selector-syntax-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"batch_size\"],\"properties\":{\"batch_size\":{\"type\":\"integer\"}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_types\":{\"batch_size.*\":\"integer\"}}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator/config/field_types/batch_size.*"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/batch_size.*",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.batch_size.*",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator/config/field_types/batch_size.*"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_types/batch_size.*",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.batch_size.*",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "field-map-malformed-shape",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\"},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_types\":[\"batch_size\"]}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/evaluator/config/field_types"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/evaluator/config/field_types"
+            }
+          ],
+          "coverage": []
+        }
+      }
+    },
+    {
+      "name": "field-map-nonstring-yaml-key",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\"},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "yaml",
+        "source": "rules:\n  - name: shape-rule\n    condition:\n      selector: {path: input}\n      evaluator:\n        name: json\n        config:\n          field_types:\n            7: integer\n    scope: {stages: [pre]}\n"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/evaluator/config/field_types/<key>"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/evaluator/config/field_types/<key>"
+            }
+          ],
+          "coverage": []
+        }
+      }
+    },
+    {
+      "name": "field-constraints-selector-syntax-unknown",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"batch_size\"],\"properties\":{\"batch_size\":{\"type\":\"integer\"}}},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":{\"batch_size.*\":{\"min\":1}}}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator/config/field_constraints/batch_size.*"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/batch_size.*",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.batch_size.*",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "coverage_unknown",
+              "path": "/rules/0/condition/evaluator/config/field_constraints/batch_size.*"
+            }
+          ],
+          "coverage": [
+            {
+              "rule_path": "/rules/0/condition/evaluator/config/field_constraints/batch_size.*",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input.batch_size.*",
+              "status": "unknown"
+            },
+            {
+              "rule_path": "/rules/0/condition/selector/path",
+              "checkpoint": "send",
+              "stage": "pre",
+              "selector": "input",
+              "status": "covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "field-constraints-malformed-shape",
+      "config": {
+        "format": "json",
+        "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\"},\"input_from\":{\"provider\":\"app.payload\"}}}}"
+      },
+      "rules": {
+        "format": "json",
+        "source": "{\"rules\":[{\"name\":\"shape-rule\",\"condition\":{\"selector\":{\"path\":\"input\"},\"evaluator\":{\"name\":\"json\",\"config\":{\"field_constraints\":[\"batch_size\"]}}},\"scope\":{\"stages\":[\"pre\"]}}]}"
+      },
+      "expect": {
+        "python": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/evaluator/config/field_constraints"
+            }
+          ],
+          "coverage": []
+        },
+        "typescript": {
+          "valid": false,
+          "coverage_complete": false,
+          "diagnostics": [
+            {
+              "code": "rules_schema",
+              "path": "/rules/0/condition/evaluator/config/field_constraints"
+            }
+          ],
+          "coverage": []
+        }
+      }
+    }
+  ]
+}

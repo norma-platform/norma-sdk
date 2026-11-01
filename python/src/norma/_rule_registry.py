@@ -57,6 +57,7 @@ class _RegisteredRule:
     step_name: str
     description: str | None
     metadata: dict[str, Any]
+    instrumentation_target_arguments: Any | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +78,8 @@ def register(
     policy: str | None = None,
     step_type: str | None = None,
     step_name: str | None = None,
+    *,
+    instrumentation_target_arguments: Any | None = None,
 ) -> None:
     """Register a decorated function's step schema in the registry.
 
@@ -126,6 +129,7 @@ def register(
         step_name=step_name,
         description=description,
         metadata=metadata,
+        instrumentation_target_arguments=instrumentation_target_arguments,
     )
 
     # Store (last-write-wins for duplicate type+name pairs).
@@ -147,7 +151,13 @@ def get_registered_steps() -> list[StepSchemaDict]:
     """
     steps: list[StepSchemaDict] = []
     for registered in _registered_steps.values():
-        schemas = derive_schemas(registered.func)
+        target_arguments = registered.instrumentation_target_arguments
+        schemas = derive_schemas(
+            registered.func,
+            input_signature=(
+                target_arguments.application_signature if target_arguments is not None else None
+            ),
+        )
         step: StepSchemaDict = {
             "type": registered.step_type,
             "name": registered.step_name,

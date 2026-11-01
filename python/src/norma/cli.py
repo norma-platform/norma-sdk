@@ -1,5 +1,5 @@
 # Modified for Norma.
-"""Read-only diagnostics for hosted Norma connections."""
+"""Read-only hosted diagnostics and offline instrumentation validation."""
 
 import argparse
 import asyncio

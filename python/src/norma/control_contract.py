@@ -4,13 +4,22 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import httpx
 
-ControlContract = Literal["rule-controls-v1"]
+ControlContract = Literal["rule-controls", "rule-controls-v1"]
 CONTROL_CONTRACT_HEADER = "X-Norma-Control-Contract"
 CONTROL_CONTRACT = "rule-controls-v1"
+
+
+def normalize_control_contract(value: str | None) -> ControlContract | None:
+    """Normalize the friendly public name to the versioned wire identifier."""
+    if value is None:
+        return None
+    if isinstance(value, str) and value in {"rule-controls", CONTROL_CONTRACT}:
+        return cast(ControlContract, CONTROL_CONTRACT)
+    raise ValueError("control_contract must be 'rule-controls', 'rule-controls-v1', or None")
 
 _RULES_PATH = re.compile(r"/api/v1/agents/[^/]+/rules\Z")
 _OPERATION_PATH = re.compile(

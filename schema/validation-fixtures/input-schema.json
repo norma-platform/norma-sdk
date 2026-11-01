@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "draft7-default-when-schema-uri-omitted",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}}}",
+      "parse_valid": true,
+      "config_valid": true,
+      "runtime_input_check": {
+        "input": {
+          "recipient": "person@example.test"
+        },
+        "valid": true
+      }
+    },
+    {
+      "name": "draft7-explicit-canonical-uri",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}}}",
+      "parse_valid": true,
+      "config_valid": true,
+      "runtime_input_check": {
+        "input": {
+          "recipient": "person@example.test"
+        },
+        "valid": true
+      }
+    },
+    {
+      "name": "optional-nullable-property",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"subject\":{\"type\":[\"string\",\"null\"]}}}}}}",
+      "parse_valid": true,
+      "config_valid": true,
+      "runtime_input_check": {
+        "input": {
+          "subject": null
+        },
+        "valid": true
+      }
+    },
+    {
+      "name": "unsupported-dialect-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\"}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "unsupported-format-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"email\":{\"type\":\"string\",\"format\":\"email\"}}}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "unsupported-keyword-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"unevaluatedProperties\":false}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "external-reference-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$ref\":\"https://example.invalid/schema.json\"}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "unresolved-local-reference-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$ref\":\"#/definitions/missing\"}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "cyclic-reference-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$ref\":\"#/definitions/node\",\"definitions\":{\"node\":{\"$ref\":\"#/definitions/node\"}}}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "local-json-pointer-reference-accepted",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"properties\":{\"recipient\":{\"$ref\":\"#/definitions/recipient\"}},\"definitions\":{\"recipient\":{\"type\":\"string\"}}}}}}",
+      "parse_valid": true,
+      "config_valid": true,
+      "runtime_input_check": {
+        "input": {
+          "recipient": "person@example.test"
+        },
+        "valid": true
+      }
+    },
+    {
+      "name": "literal-input-schema-mismatch",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}},\"input_from\":{\"value\":{\"subject\":\"Balance\"}}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_from/value",
+      "literal_check": {
+        "valid": false,
+        "config_path": "/checkpoints/send/input_from/value",
+        "instance_path": "/recipient"
+      }
+    },
+    {
+      "name": "literal-input-schema-match",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}},\"input_from\":{\"value\":{\"recipient\":\"person@example.test\"}}}}}",
+      "parse_valid": true,
+      "config_valid": true,
+      "literal_check": {
+        "valid": true
+      }
+    },
+    {
+      "name": "runtime-input-schema-mismatch",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}}}",
+      "parse_valid": true,
+      "config_valid": true,
+      "runtime_input_check": {
+        "input": {
+          "recipient": 7
+        },
+        "valid": false,
+        "config_path": "/checkpoints/send/input_schema",
+        "instance_path": "/recipient"
+      }
+    },
+    {
+      "name": "runtime-input-schema-match",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}}}",
+      "parse_valid": true,
+      "config_valid": true,
+      "runtime_input_check": {
+        "input": {
+          "recipient": "person@example.test"
+        },
+        "valid": true
+      }
+    },
+    {
+      "name": "v1-checkpoint-rejects-input-schema",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\"}}}}",
+      "parse_valid": false,
+      "config_valid": false
+    },
+    {
+      "name": "schema-id-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$id\":\"https://example.invalid/schema\",\"type\":\"object\"}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "nonpointer-local-reference-rejected",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"$ref\":\"#recipient\",\"definitions\":{\"recipient\":{\"type\":\"string\"}}}}}}",
+      "parse_valid": false,
+      "config_valid": false,
+      "config_path": "/checkpoints/send/input_schema"
+    },
+    {
+      "name": "nested-canonical-draft7-uri-accepted",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"request\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}},\"input_from\":{\"provider\":\"app.payload\"}}}}",
+      "parse_valid": true,
+      "config_valid": true
+    }
+  ]
+}

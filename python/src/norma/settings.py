@@ -162,6 +162,14 @@ def load_settings_from_env() -> SDKSettings:
 
 def get_settings() -> SDKSettings:
     """Get the current settings instance."""
+    try:
+        from ._state import active_state
+
+        selected = active_state()
+        if selected is not None and selected.observability_settings is not None:
+            return selected.observability_settings
+    except ImportError:
+        pass
     return settings
 
 

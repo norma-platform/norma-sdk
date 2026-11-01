@@ -6,6 +6,8 @@ from __future__ import annotations
 import asyncio
 import json
 import subprocess
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from typing import Literal, Self
@@ -23,15 +25,113 @@ from norma.models import (
 )
 
 from ._checks import _post_checks_request
-from ._state import state as _session_state
+from ._state import get_state
 from ._wire.checks import CheckRequest as _CheckRequest
-from .client import NormaClient
+from .client import NormaClient, new_session_client
 
 _active_recorder: ContextVar[TurnRecorder | None] = ContextVar(
     "norma_finish_recorder", default=None
 )
+
+
+@dataclass
+class _NativeFinishUse:
+    used: bool = False
+
+
+@dataclass(frozen=True)
+class ConfiguredNativeFinish:
+    """Invocation-local state passed to configured native finish adapters."""
+
+    driver: str
+    adapter_name: str
+    agent_name: str
+    recorder: TurnRecorder
+    finish: Mapping[str, object]
+    invocation: Mapping[str, object]
+    session: object
+    target_type: str | None
+    target_id: str | None
+    use_state: _NativeFinishUse = field(default_factory=_NativeFinishUse, compare=False)
+    session_generation: int = field(init=False, repr=False)
+    session_agent: object | None = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "session_generation", getattr(self.session, "session_generation", -1)
+        )
+        object.__setattr__(self, "session_agent", getattr(self.session, "current_agent", None))
+
+    def ensure_active(self) -> None:
+        """Fence native work after close, reinitialization or Agent identity change."""
+        session = self.session
+        agent = getattr(session, "current_agent", None)
+        if (
+            getattr(session, "closed", True)
+            or getattr(session, "session_generation", None) != self.session_generation
+            or agent is not self.session_agent
+            or getattr(session, "configured_agent_name", None) != self.agent_name
+            or agent is None
+            or getattr(agent, "agent_name", None) != self.agent_name
+        ):
+            from .checkpoints import CheckError
+
+            raise CheckError("Configured Agent session changed or closed; execution blocked.")
+
+
+_configured_native_finish: ContextVar[ConfiguredNativeFinish | None] = ContextVar(
+    "norma_configured_native_finish", default=None
+)
+
+
+@contextmanager
+def use_configured_native_finish(record: ConfiguredNativeFinish) -> Iterator[None]:
+    """Select a native finish plan only for this application invocation."""
+    token = _configured_native_finish.set(record)
+    try:
+        yield
+    finally:
+        _configured_native_finish.reset(token)
+
+
+def current_configured_native_finish() -> ConfiguredNativeFinish | None:
+    """Return the native finish plan selected by the current configured call."""
+    return _configured_native_finish.get()
+
+
+def mark_configured_native_finish_used(record: ConfiguredNativeFinish) -> None:
+    """Mark that the matching configured native framework call handled finish."""
+    if current_configured_native_finish() is not record:
+        raise RuntimeError("Configured native finish identity does not match this invocation")
+    record.use_state.used = True
+
+
+def configured_native_finish_was_used(record: ConfiguredNativeFinish) -> bool:
+    """Report whether an eligible native framework call ran for this invocation."""
+    return record.use_state.used
+
+
+@contextmanager
+def use_turn_recorder(recorder: TurnRecorder) -> Iterator[None]:
+    """Reuse an active invocation recorder, or establish it for a native helper."""
+    if _active_recorder.get() is recorder:
+        yield
+    else:
+        with recorder:
+            yield
+
+
 ActionKind = Literal["shell", "edit", "read", "search", "web", "mcp", "task", "other"]
 ActionStatus = Literal["succeeded", "failed", "denied", "unknown"]
+
+
+class FinishHeldError(RuntimeError):
+    """A held finish that preserves the original result and runtime verdict."""
+
+    def __init__(self, verdict: FinishVerdict, original_result: object) -> None:
+        self.verdict = verdict
+        self.original_result = original_result
+        super().__init__("The configured finish check held this turn.")
 
 
 def _bounded_text(value: str, limit: int) -> str:
@@ -124,7 +224,13 @@ class TurnRecorder:
                     self._files_touched.pop(0)
         return action.model_copy()
 
-    def turn(self, final_message: str, *, continuation_count: int = 0) -> TurnRecord:
+    def turn(
+        self,
+        final_message: str,
+        *,
+        continuation_count: int = 0,
+        agent_generation: str | None = None,
+    ) -> TurnRecord:
         """Build a typed snapshot; a hold continuation keeps this turn identity."""
         return TurnRecord(
             schema_version="1",
@@ -141,7 +247,11 @@ class TurnRecorder:
             actions_truncated=self._actions_truncated,
             files_touched=list(self._files_touched),
             evidence_source="sdk",
-            continuation=ContinuationState(count=continuation_count, max=self.max_continuations),
+            continuation=ContinuationState(
+                count=continuation_count,
+                max=self.max_continuations,
+                agent_generation=agent_generation,
+            ),
         )
 
 
@@ -227,9 +337,24 @@ async def check_finish(
         turn = redact_turn_record(turn)
     except (ValueError, TypeError, AttributeError):
         return _unavailable(ContinuationState(count=0, max=0))
-    resolved_agent = agent_name or (
-        _session_state.current_agent.agent_name if _session_state.current_agent else None
-    )
+    current_agent = get_state().current_agent
+    resolved_agent = agent_name or (current_agent.agent_name if current_agent else None)
+    from ._request_context import current_invocation
+    from ._state import active_state
+
+    invocation = current_invocation(get_state())
+
+    try:
+        get_state().require_agent_identity()
+    except RuntimeError:
+        return _unavailable(turn.continuation)
+    if (
+        client is None
+        and active_state() is get_state()
+        and current_agent is not None
+        and resolved_agent != current_agent.agent_name
+    ):
+        return _unavailable(turn.continuation)
     if resolved_agent is None:
         return _unavailable(turn.continuation)
     if (target_type is None) != (target_id is None):
@@ -237,11 +362,28 @@ async def check_finish(
     if (
         client is None
         and target_type is not None
-        and (target_type != _session_state.target_type or target_id != _session_state.target_id)
+        and (
+            target_type
+            != (invocation.target_type if invocation is not None else get_state().target_type)
+            or target_id
+            != (invocation.target_id if invocation is not None else get_state().target_id)
+        )
     ):
         return _unavailable(turn.continuation)
-    resolved_target_type = target_type if client is not None else _session_state.target_type
-    resolved_target_id = target_id if client is not None else _session_state.target_id
+    resolved_target_type = (
+        target_type
+        if client is not None
+        else invocation.target_type
+        if invocation is not None
+        else get_state().target_type
+    )
+    resolved_target_id = (
+        target_id
+        if client is not None
+        else invocation.target_id
+        if invocation is not None
+        else get_state().target_id
+    )
     try:
         request = _CheckRequest(
             agent_name=resolved_agent,
@@ -279,17 +421,23 @@ async def check_finish(
             or verdict.continuation.max > turn.continuation.max
         ):
             raise ValueError("finish response has an incompatible continuation state")
+        request_generation = turn.continuation.agent_generation
+        response_generation = verdict.continuation.agent_generation
+        if (
+            response_generation is not None
+            and verdict.agent_generation is not None
+            and response_generation != verdict.agent_generation
+        ):
+            raise ValueError("finish response has inconsistent agent generations")
+        if request_generation is not None and response_generation != request_generation:
+            raise ValueError("finish response changed the pinned agent generation")
         return verdict
 
     try:
         async with asyncio.timeout(8.0):
             if client is not None:
                 return await send(client)
-            async with NormaClient(
-                runtime_url=_session_state.server_url,
-                agent_key=_session_state.api_key,
-                control_contract=_session_state.control_contract,
-            ) as session_client:
+            async with new_session_client(NormaClient) as session_client:
                 return await send(session_client)
     except (httpx.HTTPError, TimeoutError, ValueError, RuntimeError):
         return _unavailable(turn.continuation)

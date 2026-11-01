@@ -1,6 +1,6 @@
 {
   "name": "norma-sdk",
-  "version": "4.0.0-dev.2",
+  "version": "4.0.0-dev.15",
   "private": false,
   "description": "TypeScript SDK for Norma",
   "license": "Apache-2.0",
@@ -25,6 +25,9 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "norma": "dist/cli.cjs"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
@@ -58,10 +61,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsc -p tsconfig.declarations.json && tsup",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "config:validate": "node ./dist/cli.cjs config validate",
+    "config:check": "node ./dist/cli.cjs config check",
     "test:watch": "vitest",
     "release": "make release-check",
     "release:dry-run": "make release-check",
@@ -69,6 +74,8 @@
     "check": "make check"
   },
   "dependencies": {
+    "ajv": "^8",
+    "yaml": "^2",
     "zod": "^4.1.11"
   },
   "devDependencies": {

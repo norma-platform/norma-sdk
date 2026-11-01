@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "entrypoints": [
+    {
+      "target": "application.billing_chat",
+      "context": { "provider": "callbacks.requestContext" },
+      "turn": {
+        "session_id": { "path": ["args", 0, "session_id"] },
+        "turn_id": { "path": ["args", 0, "turn_id"] },
+        "user_request": { "path": ["args", 0, "message"] },
+        "finish": {
+          "final_message": { "path": ["result"] },
+          "on_hold": "raise",
+          "on_verdict": { "binding": "callbacks.recordVerdict" }
+        }
+      }
+    }
+  ],
+  "checkpoints": {
+    "send_message": {
+      "target": "tools.send_message",
+      "step_type": "tool",
+      "action": { "kind": "other", "target": { "path": ["args", 0] } }
+    }
+  }
+}

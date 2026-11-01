@@ -1,11 +1,29 @@
 <!-- Modified for Norma. -->
 # Google ADK
 
-Install `pip install 'norma-sdk[google-adk]'`. The supported dependency range is
-Google ADK `>=1.7.0,<3`; plugins first appeared in 1.7.0. The real framework matrix
-currently verifies **1.7.0 and 2.12.0** on Python 3.12. Intermediate releases have
-not each been tested. ADK remains optional: importing Norma without it works, and
-accessing `NormaPlugin` explains how to install the extra.
+For a new application, use version 2 declarative configuration to bind the
+entrypoint, existing agent identity, and ADK adapter at startup. This page's
+explicit `norma.init()` and `NormaPlugin.bind()` flow remains an advanced
+advanced path for integrations that need direct hook selection.
+
+For example, bind a configured Runner to an application entrypoint without
+serializing the Agent or callback objects:
+
+```yaml
+version: 2
+entrypoints:
+  - target: application.serve
+adapters:
+  support:
+    kind: google_adk
+    runner: {binding: adk.runner}
+checkpoints: {}
+```
+
+Call `await norma.aconfigure("norma-agents", bindings=...)` once for the
+application lifetime; normal requests reuse the configured entrypoint.
+
+Download the supplied [Python wheel](https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev18-py3-none-any.whl), save it in your project, then install the Google ADK extra: `python -m pip install './norma_sdk-8.7.1.dev18-py3-none-any.whl[google-adk]'`. The adapter dependency is `google-adk>=1.7.0,<3`.
 
 Configure `NORMA_RUNTIME_URL` with your tenant HTTPS URL and `NORMA_AGENT_KEY`
 with the scoped key issued in Console. Initialize before binding or running:
@@ -45,6 +63,43 @@ async def run(model):
 The Runner `plugins` argument works across this matrix. ADK 2.12 deprecates it in
 favor of passing an `App` containing the plugins; use that equivalent form when
 building solely for newer ADK versions.
+
+### Streamed finish on `Runner.run_async`
+
+`Runner.run_async` is an async generator and can be configured as a version 2
+entrypoint with `turn.finish.stream`. ADK yields Event objects, so select the text
+from each current event with a bound provider; return `None` for events without
+text and set `missing: skip`. The SDK passes every Event through unchanged and sends
+one finish check after natural exhaustion. Closing the stream early does not run a
+finish check. Streamed finishes do not automatically retry a held turn.
+
+For a direct `runner.run_async(...)` call, bind the Runner and select identifiers
+from the call arguments (or use your application's own provider for a fresh turn
+ID):
+
+```yaml
+version: 2
+entrypoints:
+  - target: framework.runner.run_async
+    turn:
+      session_id: {path: [kwargs, session_id]}
+      turn_id: {provider: callbacks.new_turn_id}
+      finish:
+        stream:
+          text: {provider: callbacks.event_text}
+          missing: skip
+        on_hold: raise
+adapters:
+  adk:
+    kind: google_adk
+    runner: {binding: framework.runner}
+checkpoints: {}
+```
+
+The event text provider receives an invocation whose `result` is the current ADK
+Event. Use a provider that selects only text parts. An unavailable finish check
+keeps the SDK's existing fail-open behavior; normal exhaustion does not prove a
+Rule passed.
 
 ## Enforcement and recovery
 

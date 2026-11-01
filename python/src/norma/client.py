@@ -11,6 +11,7 @@ from .control_contract import (
     CONTROL_CONTRACT_HEADER,
     ControlContract,
     is_control_contract_route,
+    normalize_control_contract,
     require_control_acknowledgement,
 )
 from .errors import raise_for_norma_status
@@ -34,8 +35,7 @@ class NormaClient:
         transport: httpx.AsyncBaseTransport | None = None,
         control_contract: ControlContract | None = None,
     ) -> None:
-        if control_contract not in (None, "rule-controls-v1"):
-            raise ValueError("control_contract must be 'rule-controls-v1' or None")
+        control_contract = normalize_control_contract(control_contract)
         self.base_url = resolve_url(runtime_url)
         self.timeout = timeout
         self._agent_key = resolve_agent_key(agent_key)
@@ -153,3 +153,37 @@ class NormaClient:
             target_type=target_type,
             target_id=target_id,
         )
+
+    async def put_agent_steps(
+        self, agent_name: str, steps: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Publish reviewed step schemas for an existing authorized Agent."""
+        normalized_name = ensure_agent_name(agent_name)
+        response = await self.http_client.put(
+            f"/api/v1/agents/{normalized_name}/steps", json={"steps": steps}
+        )
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data, dict) or not isinstance(data.get("steps"), list):
+            raise RuntimeError("Runtime did not return the stored Agent step schemas")
+        return cast(dict[str, Any], data)
+
+
+def new_session_client(
+    client_factory: Any = None, session: Any = None
+) -> NormaClient:
+    """Create a client using the selected SDK session's connection settings."""
+    from ._state import get_state
+
+    session = session or get_state()
+    factory = client_factory or NormaClient
+    options: dict[str, Any] = {
+        "runtime_url": session.server_url,
+        "agent_key": session.api_key,
+        "control_contract": session.control_contract,
+    }
+    if session.client_timeout_seconds != 30.0:
+        options["timeout"] = session.client_timeout_seconds
+    if session.client_transport is not None:
+        options["transport"] = session.client_transport
+    return factory(**options)

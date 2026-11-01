@@ -1,12 +1,14 @@
 // Modified for Norma.
 /** Observed rule results only: these events are not receipts for external actions. */
 import type { RuleCheckEvent } from "../generated/models/rule-check-event";
-import type { CheckRequest } from "../generated/models/check-request";
+import type { CheckRequest as GeneratedCheckRequest } from "../generated/models/check-request";
+import type { CheckRequest as PublicCheckRequest } from "../public-api";
 import type { CheckResponse } from "../generated/models/check-response";
 
 const debugKeys = new Set([
   "selected_data", "selected_data_preview", "engine_selected_data", "engine_selected_data_preview",
 ]);
+type CheckRequest = GeneratedCheckRequest & Pick<PublicCheckRequest, "traceId" | "spanId">;
 
 function safeValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(safeValue);
@@ -92,7 +94,7 @@ export function buildCheckEvents(
     }
     return {
       checkId: match.checkId || globalThis.crypto.randomUUID(),
-      traceId: "0".repeat(32), spanId: "0".repeat(16),
+      traceId: request.traceId ?? "0".repeat(32), spanId: request.spanId ?? "0".repeat(16),
       agentName: request.agentName, ruleId: match.ruleId, ruleName: match.ruleName,
       checkStage: request.stage, appliesTo: `${request.step.type}_call`,
       action: match.effectiveAction ?? match.action, matched,
