@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import subprocess
 import sys
 from unittest.mock import patch
@@ -307,7 +308,9 @@ async def test_opted_in_finish_requires_ack_and_preserves_frozen_control_evidenc
             "references": [],
         }],
         "verdict": "pass", "reason": "Done", "reason_codes": [], "held_by": [],
-        "would_hold_by": [], "continuation": {"count": 0, "max": 2},
+        "would_hold_by": [], "continuation": {
+            "count": 0, "max": 2, "agent_generation": "generation-1",
+        },
         "allow_finish": True, "outcome": "completed", "provider_input_tokens": None,
     }
     seen: list[httpx.Request] = []
@@ -328,8 +331,131 @@ async def test_opted_in_finish_requires_ack_and_preserves_frozen_control_evidenc
     assert verdict.verdict == "pass"
     assert verdict.control_contract == "rule-controls-v1"
     assert verdict.agent_generation == "generation-1"
+    assert verdict.continuation.agent_generation == "generation-1"
     assert verdict.control_evidence[0].completeness == "unavailable"
+    assert json.loads(seen[0].content)["step"]["input"]["continuation"] == {
+        "count": 0, "max": 2,
+    }
     assert seen[0].headers["X-Norma-Control-Contract"] == "rule-controls-v1"
+
+
+def test_continuation_generation_is_typed_and_omitted_when_unset() -> None:
+    assert ContinuationState(count=0, max=2).model_dump(mode="json") == {
+        "count": 0,
+        "max": 2,
+    }
+    assert ContinuationState(
+        count=1, max=2, agent_generation="generation-1"
+    ).model_dump(mode="json") == {
+        "count": 1,
+        "max": 2,
+        "agent_generation": "generation-1",
+    }
+    with pytest.raises(ValueError):
+        ContinuationState(count=0, agent_generation="g" * 129)
+
+
+@pytest.mark.asyncio
+async def test_check_finish_does_not_infer_nested_generation_from_legacy_top_level_field() -> None:
+    from norma.client import NormaClient
+
+    payload = {
+        "execution_contract": "hosted-v1",
+        "agent_generation": "legacy-top-level-generation",
+        "verdict": "pass",
+        "reason": "Done",
+        "reason_codes": [],
+        "held_by": [],
+        "would_hold_by": [],
+        "continuation": {"count": 0, "max": 2},
+        "allow_finish": True,
+        "outcome": "completed",
+    }
+    request_bodies: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        request_bodies.append(json.loads(request.content))
+        return httpx.Response(200, json=payload)
+
+    async with NormaClient(transport=httpx.MockTransport(handler)) as client:
+        verdict = await check_finish(
+            _recorder().turn("Done"), client=client, agent_name="test-agent"
+        )
+
+    assert verdict.verdict == "pass"
+    assert verdict.agent_generation == "legacy-top-level-generation"
+    assert verdict.continuation.agent_generation is None
+    assert request_bodies[0]["step"]["input"]["continuation"] == {"count": 0, "max": 2}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("request_generation", "top_level_generation", "nested_generation"),
+    [
+        (None, "top-level-generation", "different-nested-generation"),
+        ("pinned-generation", "different-generation", "different-generation"),
+        ("pinned-generation", "pinned-generation", None),
+    ],
+)
+async def test_check_finish_fails_open_on_agent_generation_mismatch(
+    request_generation: str | None,
+    top_level_generation: str | None,
+    nested_generation: str | None,
+) -> None:
+    from norma.client import NormaClient
+
+    payload: dict[str, object] = {
+        "execution_contract": "hosted-v1",
+        "verdict": "pass",
+        "reason": "Done",
+        "reason_codes": [],
+        "held_by": [],
+        "would_hold_by": [],
+        "continuation": {"count": 0, "max": 2},
+        "allow_finish": True,
+        "outcome": "completed",
+    }
+    if top_level_generation is not None:
+        payload["agent_generation"] = top_level_generation
+    if nested_generation is not None:
+        payload["continuation"]["agent_generation"] = nested_generation
+
+    async with NormaClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=payload))
+    ) as client:
+        turn = _recorder().turn("Done", agent_generation=request_generation)
+        verdict = await check_finish(turn, client=client, agent_name="test-agent")
+
+    assert verdict.verdict == "unavailable"
+    assert verdict.allow_finish is True
+    assert verdict.outcome == "finished_unverified"
+    assert verdict.continuation.agent_generation == request_generation
+
+
+@pytest.mark.asyncio
+async def test_check_finish_keeps_rejecting_unknown_continuation_fields() -> None:
+    from norma.client import NormaClient
+
+    payload = {
+        "execution_contract": "hosted-v1",
+        "verdict": "pass",
+        "reason": "Done",
+        "reason_codes": [],
+        "held_by": [],
+        "would_hold_by": [],
+        "continuation": {"count": 0, "max": 2, "unknown": "not-allowed"},
+        "allow_finish": True,
+        "outcome": "completed",
+    }
+    async with NormaClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=payload))
+    ) as client:
+        verdict = await check_finish(
+            _recorder().turn("Done"), client=client, agent_name="test-agent"
+        )
+
+    assert verdict.verdict == "unavailable"
+    assert verdict.outcome == "finished_unverified"
 
 
 @pytest.mark.asyncio

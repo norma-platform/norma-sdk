@@ -2,7 +2,7 @@ SHELL := /bin/bash
 PYTHON ?= python3
 ARTIFACT_DIR ?= $(CURDIR)/artifacts
 
-.PHONY: help install install-no-frozen lint typecheck test build check release-check publish-dry-run publish clean pack-check
+.PHONY: help install install-no-frozen lint typecheck test build check release-check publish-dry-run publish clean pack-check reproducibility-check
 
 help:
 	@echo "TypeScript SDK Makefile targets"
@@ -12,6 +12,7 @@ help:
 	@echo "  make test               - run Vitest"
 	@echo "  make build              - build package with tsup"
 	@echo "  make pack-check         - qualify a built tarball in an offline temporary consumer"
+	@echo "  make reproducibility-check - require three clean builds to emit identical bytes"
 	@echo "  make check              - lint, typecheck, test, build, and qualify the tarball"
 	@echo "  make release-check      - prepare qualified artifacts without publishing"
 
@@ -28,7 +29,7 @@ typecheck:
 	$(PYTHON) scripts/check_public_contract.py
 	pnpm run typecheck
 
-test:
+test: build
 	pnpm run test
 	$(PYTHON) -m unittest discover -s tests -p 'test_package_payload.py'
 
@@ -39,8 +40,11 @@ check:
 	$(MAKE) lint
 	$(MAKE) typecheck
 	$(MAKE) test
-	$(MAKE) build
+	$(MAKE) reproducibility-check
 	$(MAKE) pack-check
+
+reproducibility-check:
+	$(PYTHON) scripts/check_reproducible_build.py
 
 release-check: check
 

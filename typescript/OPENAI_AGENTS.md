@@ -1,6 +1,35 @@
 # OpenAI Agents SDK
 
-Use `checkpoint` for a simple async function. Use the optional `norma-sdk/openai-agents` integration when you need native steer feedback, active-agent attribution, and tool-call records. Install `@openai/agents@0.20.0` separately; this exact release is tested. The core `norma-sdk` import requires only Zod.
+For a new application, use version 2 declarative configuration to bind existing
+OpenAI Agent identities, entrypoints, and definition-form tools at startup. The
+direct `NormaClient` and `normaTool` API below is an advanced path for explicit
+guardrail composition. Install the [qualified SDK tarball](https://norma-platform.cloud/artifacts/norma-sdk-4.0.0-dev.15.tgz) and `@openai/agents@0.20.0` separately when using the
+adapter. Declarative parsing uses the SDK's AJV/YAML dependencies and does not
+load the optional OpenAI peer unless that adapter is configured.
+
+```yaml
+version: 2
+entrypoints:
+  - target: application.serve
+adapters:
+  support:
+    kind: openai_agents
+    agent: {binding: agents.support}
+    tools:
+      lookup_order:
+        description: Look up an order
+        parameters:
+          type: object
+          properties:
+            orderId: {type: string}
+          required: [orderId]
+          additionalProperties: false
+        execute: {binding: tools.lookup_order}
+checkpoints: {}
+```
+
+Name the file for the exact registered Norma identity and bind real application
+objects before calling `configure()`.
 
 ```ts
 import { Agent, Runner } from "@openai/agents";

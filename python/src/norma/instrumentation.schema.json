@@ -1,0 +1,1328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://norma-platform.cloud/schemas/instrumentation.schema.json",
+  "title": "Norma declarative instrumentation",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/version1"
+    },
+    {
+      "$ref": "#/$defs/version2"
+    }
+  ],
+  "$defs": {
+    "targetPath": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+    },
+    "entrypointV2": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/targetPath"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target"
+          ],
+          "properties": {
+            "target": {
+              "$ref": "#/$defs/targetPath"
+            },
+            "parameter_names": {
+              "$ref": "#/$defs/parameterNames"
+            },
+            "returns": {
+              "enum": [
+                "promise",
+                "async_iterable"
+              ]
+            },
+            "context": {
+              "$ref": "#/$defs/valueSource"
+            },
+            "target_scope": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "id"
+              ],
+              "properties": {
+                "type": {
+                  "$ref": "#/$defs/valueSource"
+                },
+                "id": {
+                  "$ref": "#/$defs/valueSource"
+                }
+              }
+            },
+            "trace": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "trace_id",
+                "span_id"
+              ],
+              "properties": {
+                "trace_id": {
+                  "$ref": "#/$defs/valueSource"
+                },
+                "span_id": {
+                  "$ref": "#/$defs/valueSource"
+                }
+              }
+            },
+            "turn": {
+              "$ref": "#/$defs/turn"
+            }
+          }
+        }
+      ]
+    },
+    "nonblank": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "parameterNames": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    },
+    "jsonValue": {},
+    "bindingRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/targetPath"
+        }
+      }
+    },
+    "envRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "env"
+      ],
+      "properties": {
+        "env": {
+          "$ref": "#/$defs/nonblank"
+        }
+      }
+    },
+    "valueSource": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "$ref": "#/$defs/jsonValue"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path"
+          ],
+          "properties": {
+            "path": {
+              "type": "array",
+              "minItems": 1,
+              "prefixItems": [
+                {
+                  "enum": [
+                    "args",
+                    "kwargs",
+                    "result",
+                    "error",
+                    "context",
+                    "input",
+                    "params"
+                  ]
+                }
+              ],
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                ]
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "prefixItems": [
+                      {
+                        "const": "params"
+                      }
+                    ]
+                  },
+                  "then": {
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "const": "params"
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider"
+          ],
+          "properties": {
+            "provider": {
+              "$ref": "#/$defs/targetPath"
+            }
+          }
+        }
+      ]
+    },
+    "checkpointInputSourceV2": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/valueSource"
+        },
+        {
+          "const": "all_kwargs"
+        },
+        {
+          "const": "all_params"
+        }
+      ]
+    },
+    "actionValue": {
+      "oneOf": [
+        {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        {
+          "$ref": "#/$defs/valueSource"
+        }
+      ]
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "shell",
+            "edit",
+            "read",
+            "search",
+            "web",
+            "mcp",
+            "task",
+            "other"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/actionValue"
+        },
+        "command": {
+          "$ref": "#/$defs/actionValue"
+        },
+        "cwd": {
+          "$ref": "#/$defs/actionValue"
+        }
+      }
+    },
+    "nativeToolAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "shell",
+            "edit",
+            "read",
+            "search",
+            "web",
+            "mcp",
+            "task",
+            "other"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/actionValue"
+        },
+        "command": {
+          "$ref": "#/$defs/actionValue"
+        }
+      }
+    },
+    "inlineAction": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/action"
+        },
+        {
+          "$ref": "#/$defs/bindingRef"
+        }
+      ]
+    },
+    "inlineState": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/bindingRef"
+        }
+      ]
+    },
+    "schemaEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "name"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "name": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "input_schema": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "output_schema": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "metadata": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "publish": {
+          "type": "boolean"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/schemaEntry"
+          }
+        }
+      }
+    },
+    "boundCallback": {
+      "$ref": "#/$defs/bindingRef"
+    },
+    "turnFinish": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "final_message",
+            "on_hold"
+          ],
+          "properties": {
+            "driver": {
+              "const": "generic"
+            },
+            "final_message": {
+              "$ref": "#/$defs/valueSource"
+            },
+            "on_hold": {
+              "enum": [
+                "raise",
+                "return"
+              ]
+            },
+            "continue_with": {
+              "$ref": "#/$defs/boundCallback"
+            },
+            "on_verdict": {
+              "$ref": "#/$defs/boundCallback"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "on_hold": {
+                    "const": "return"
+                  }
+                },
+                "required": [
+                  "on_hold"
+                ]
+              },
+              "then": {
+                "required": [
+                  "on_verdict"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stream",
+            "on_hold"
+          ],
+          "properties": {
+            "driver": {
+              "const": "generic"
+            },
+            "stream": {
+              "$ref": "#/$defs/streamFinish"
+            },
+            "on_hold": {
+              "enum": [
+                "raise",
+                "return"
+              ]
+            },
+            "on_verdict": {
+              "$ref": "#/$defs/boundCallback"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "on_hold": {
+                    "const": "return"
+                  }
+                },
+                "required": [
+                  "on_hold"
+                ]
+              },
+              "then": {
+                "required": [
+                  "on_verdict"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "driver",
+            "adapter"
+          ],
+          "properties": {
+            "driver": {
+              "enum": [
+                "openai_agents",
+                "pydantic_ai"
+              ]
+            },
+            "adapter": {
+              "$ref": "#/$defs/nonblank"
+            },
+            "on_verdict": {
+              "$ref": "#/$defs/boundCallback"
+            }
+          }
+        }
+      ]
+    },
+    "streamFinish": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "mode": {
+          "enum": [
+            "concat",
+            "last"
+          ],
+          "default": "concat"
+        },
+        "max_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8000,
+          "default": 8000
+        },
+        "missing": {
+          "enum": [
+            "error",
+            "skip"
+          ],
+          "default": "error"
+        }
+      }
+    },
+    "turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_id",
+        "turn_id"
+      ],
+      "properties": {
+        "session_id": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "user_request": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "platform_version": {
+          "type": "string"
+        },
+        "application": {
+          "type": "string"
+        },
+        "application_version": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "max_continuations": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "finish": {
+          "$ref": "#/$defs/turnFinish"
+        }
+      }
+    },
+    "operationObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_key",
+        "summary"
+      ],
+      "properties": {
+        "event_key": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "summary": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "external_reference": {
+          "$ref": "#/$defs/valueSource"
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "operation_key"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/targetPath"
+        },
+        "parameter_names": {
+          "$ref": "#/$defs/parameterNames"
+        },
+        "returns": {
+          "const": "promise"
+        },
+        "operation_key": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "input": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "context": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "evidence": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "tools": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "action": {
+          "$ref": "#/$defs/nativeToolAction"
+        },
+        "unresolved_policy": {
+          "enum": [
+            "block",
+            "allow"
+          ]
+        },
+        "observations": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "attempted": {
+              "$ref": "#/$defs/operationObservation"
+            },
+            "succeeded": {
+              "$ref": "#/$defs/operationObservation"
+            },
+            "failed": {
+              "$ref": "#/$defs/operationObservation"
+            }
+          }
+        },
+        "verification_session_id": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "on_record": {
+          "$ref": "#/$defs/boundCallback"
+        }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/operation"
+      }
+    },
+    "openAIToolDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "parameters",
+        "execute"
+      ],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "execute": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "needs_approval": {
+          "type": "boolean"
+        },
+        "input_guardrails": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boundCallback"
+          }
+        },
+        "output_guardrails": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boundCallback"
+          }
+        },
+        "on_record": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "action": {
+          "$ref": "#/$defs/nativeToolAction"
+        }
+      }
+    },
+    "openAINativeTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool"
+      ],
+      "properties": {
+        "tool": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "check_output": {
+          "type": "boolean"
+        },
+        "context_extractor": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "action": {
+          "$ref": "#/$defs/nativeToolAction"
+        }
+      }
+    },
+    "openAITool": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/openAIToolDefinition"
+        },
+        {
+          "$ref": "#/$defs/openAINativeTool"
+        }
+      ]
+    },
+    "openAIAdapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "agent"
+      ],
+      "properties": {
+        "kind": {
+          "const": "openai_agents"
+        },
+        "agent": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "runner": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "tools": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "\\S"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/openAITool"
+          }
+        }
+      }
+    },
+    "googleAdkAdapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "runner"
+      ],
+      "properties": {
+        "kind": {
+          "const": "google_adk"
+        },
+        "runner": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "agent": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "enabled_hooks": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "before_model",
+              "after_model",
+              "before_tool",
+              "after_tool"
+            ]
+          }
+        },
+        "blocked_message_template": {
+          "type": "string"
+        },
+        "step_name_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "step_name_resolver": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "context_extractor": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "on_violation_callback": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "enable_logging": {
+          "type": "boolean"
+        }
+      }
+    },
+    "strandsAdapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "agent"
+      ],
+      "properties": {
+        "kind": {
+          "const": "strands"
+        },
+        "agent": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "event_types": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "BeforeInvocationEvent",
+              "BeforeModelCallEvent",
+              "AfterModelCallEvent",
+              "BeforeToolCallEvent",
+              "AfterToolCallEvent",
+              "BeforeNodeCallEvent",
+              "AfterNodeCallEvent"
+            ]
+          }
+        },
+        "on_violation_callback": {
+          "$ref": "#/$defs/boundCallback"
+        },
+        "enable_logging": {
+          "type": "boolean"
+        }
+      }
+    },
+    "pydanticAiAdapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "agent"
+      ],
+      "properties": {
+        "kind": {
+          "const": "pydantic_ai"
+        },
+        "agent": {
+          "$ref": "#/$defs/boundCallback"
+        }
+      }
+    },
+    "adapter": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/openAIAdapter"
+        },
+        {
+          "$ref": "#/$defs/googleAdkAdapter"
+        },
+        {
+          "$ref": "#/$defs/strandsAdapter"
+        },
+        {
+          "$ref": "#/$defs/pydanticAiAdapter"
+        }
+      ]
+    },
+    "adapters": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/adapter"
+      }
+    },
+    "inlineOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "client": {
+          "$ref": "#/$defs/bindingRef"
+        },
+        "stepName": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "stepType": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "targetType": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "targetId": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "action": {
+          "$ref": "#/$defs/inlineAction"
+        },
+        "state": {
+          "$ref": "#/$defs/inlineState"
+        },
+        "action_kind": {
+          "enum": [
+            "shell",
+            "edit",
+            "read",
+            "search",
+            "web",
+            "mcp",
+            "task",
+            "other"
+          ]
+        },
+        "action_target_arg": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_command_arg": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_cwd_arg": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "checkpointV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/targetPath"
+        },
+        "step_type": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "state": {
+          "type": "object"
+        },
+        "state_provider": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "options": {
+          "$ref": "#/$defs/nonblank"
+        }
+      },
+      "not": {
+        "required": [
+          "state",
+          "state_provider"
+        ]
+      }
+    },
+    "checkpointV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/targetPath"
+        },
+        "parameter_names": {
+          "$ref": "#/$defs/parameterNames"
+        },
+        "step_type": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "state": {
+          "type": "object"
+        },
+        "state_provider": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "options": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nonblank"
+            },
+            {
+              "$ref": "#/$defs/inlineOptions"
+            }
+          ]
+        },
+        "action": {
+          "$ref": "#/$defs/action"
+        },
+        "state_from": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "input_from": {
+          "$ref": "#/$defs/checkpointInputSourceV2"
+        },
+        "output_from": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "context_from": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "tools_from": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "ground_truth_from": {
+          "$ref": "#/$defs/valueSource"
+        },
+        "input_schema": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "state",
+              "state_provider"
+            ]
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "state",
+              "state_from"
+            ]
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "state_provider",
+              "state_from"
+            ]
+          }
+        }
+      ]
+    },
+    "checkpointsV1": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/checkpointV1"
+      }
+    },
+    "checkpointsV2": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/checkpointV2"
+      }
+    },
+    "version1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "entrypoints",
+        "checkpoints"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "const": 1
+        },
+        "entrypoints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/targetPath"
+          }
+        },
+        "checkpoints": {
+          "$ref": "#/$defs/checkpointsV1"
+        }
+      }
+    },
+    "version2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "entrypoints",
+        "checkpoints"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "const": 2
+        },
+        "entrypoints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/entrypointV2"
+          }
+        },
+        "checkpoints": {
+          "$ref": "#/$defs/checkpointsV2"
+        },
+        "connection": {
+          "$ref": "#/$defs/connection"
+        },
+        "telemetry": {
+          "$ref": "#/$defs/telemetry"
+        },
+        "refresh": {
+          "$ref": "#/$defs/refresh"
+        },
+        "schemas": {
+          "$ref": "#/$defs/schemas"
+        },
+        "operations": {
+          "$ref": "#/$defs/operations"
+        },
+        "adapters": {
+          "$ref": "#/$defs/adapters"
+        }
+      }
+    },
+    "connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "runtime_url": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nonblank"
+            },
+            {
+              "$ref": "#/$defs/envRef"
+            }
+          ]
+        },
+        "agent_key": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/envRef"
+            },
+            {
+              "$ref": "#/$defs/bindingRef"
+            }
+          ]
+        },
+        "transport": {
+          "$ref": "#/$defs/bindingRef"
+        },
+        "http_client": {
+          "$ref": "#/$defs/bindingRef"
+        },
+        "debug_logger": {
+          "$ref": "#/$defs/bindingRef"
+        },
+        "user_agent": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "target_type": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "target_id": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "control_contract": {
+          "enum": [
+            "rule-controls",
+            "rule-controls-v1"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "target_type"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "target_id"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "required": [
+                "target_type",
+                "target_id"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "sink_name": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "sink_config": {
+          "type": "object"
+        },
+        "batch_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "flush_interval": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retry_delay": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "shutdown_join_timeout": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "shutdown_flush_timeout": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "shutdown_max_failed_flushes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "otel_enabled": {
+          "type": "boolean"
+        },
+        "otel_endpoint": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nonblank"
+            },
+            {
+              "$ref": "#/$defs/envRef"
+            }
+          ]
+        },
+        "otel_headers": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/envRef"
+              }
+            ]
+          }
+        },
+        "otel_service_name": {
+          "$ref": "#/$defs/nonblank"
+        },
+        "otel_tracer_provider": {
+          "$ref": "#/$defs/bindingRef"
+        },
+        "logging": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "config": {
+              "$ref": "#/$defs/bindingRef"
+            },
+            "log_enabled": {
+              "type": "boolean"
+            },
+            "log_span_start": {
+              "type": "boolean"
+            },
+            "log_span_end": {
+              "type": "boolean"
+            },
+            "log_rule_eval": {
+              "type": "boolean"
+            },
+            "log_span_results": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "refresh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "interval_seconds"
+      ],
+      "properties": {
+        "interval_seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

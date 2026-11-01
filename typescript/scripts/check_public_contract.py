@@ -31,6 +31,7 @@ if sorted(operation_routes) != sorted(contract["operationRoutes"]):
 finish_source = (ROOT / "src/finish.ts").read_text()
 if 'new URL("api/v1/checks"' not in finish_source or contract["finishRoute"] != "POST /api/v1/checks":
     raise SystemExit("Finish route allowlist changed")
+optional_type_imports = set(contract.get("optionalTypeOnlyImports", []))
 metadata = json.loads((ROOT / "package.json").read_text())
 if sorted(metadata["dependencies"]) != contract["dependencies"]:
     raise SystemExit("Unreviewed runtime dependency")
@@ -40,8 +41,16 @@ for file in (ROOT / "src").rglob("*.ts"):
     for specifier in re.findall(r'^\s*(?:import|export)\s+(?:[^;]*?from\s*)?["\']([^"\']+)', file.read_text(), re.M):
         if specifier.startswith(".") and not (file.parent / specifier).resolve().is_relative_to(ROOT / "src"):
             raise SystemExit("Source import escapes standalone SDK")
-        if specifier == "@openai/agents" and file == ROOT / "src/openai-agents.ts":
-            continue
-        if not specifier.startswith((".", "node:", "zod")):
+        if specifier == "@openai/agents":
+            relative = str(file.relative_to(ROOT))
+            if file == ROOT / "src/openai-agents.ts":
+                continue
+            if f"{relative}:{specifier}" in optional_type_imports and re.search(
+                r'^\s*import\s+type\b[^;]*?from\s*["\']@openai/agents["\']',
+                file.read_text(),
+                re.M,
+            ):
+                continue
+        if not specifier.startswith((".", "node:", "ajv/", "yaml", "zod")):
             raise SystemExit("Unreviewed source dependency")
-print(f"Hosted public contract passed: {len(actual)} generated routes; zod-only runtime dependency")
+print(f"Hosted public contract passed: {len(actual)} generated routes; runtime dependencies: {', '.join(contract['dependencies'])}")

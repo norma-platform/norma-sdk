@@ -1,44 +1,67 @@
 # Norma TypeScript SDK
 
-A typed client for the hosted Norma runtime. Requires Node.js 20 or later.
+Use the hosted TypeScript client to bind application functions to an existing Norma agent. Install the supplied package archive, configure your agent in YAML or JSON, validate the file, then start the application. Requires Node.js 20 or later.
+
+## Install and connect
+
+Download the supplied [TypeScript package](https://norma-platform.cloud/artifacts/norma-sdk-4.0.0-dev.15.tgz) and install the downloaded local file:
 
 ```sh
-npm install --ignore-scripts 'https://norma-platform.cloud/artifacts/norma-sdk-4.0.0-dev.2.tgz'
-export NORMA_RUNTIME_URL=https://your-tenant.example/api/runtime
-export NORMA_AGENT_KEY=your-agent-key
+npm install --ignore-scripts ./norma-sdk-4.0.0-dev.15.tgz
+export NORMA_RUNTIME_URL="<assigned runtime URL>"
+export NORMA_AGENT_KEY="<scoped Agent Key>"
 ```
 
-The alpha SDK is `norma-sdk@4.0.0-dev.2`.
-This package has not been published to a registry.
+Use the full URL from your workspace connection settings and keep the Agent Key in server-side environment or secret storage. HTTPS is required except for loopback development.
 
-Use the runtime URL from your Norma connection settings, including its path prefix. The Agent Key is sent in `X-API-Key`. HTTPS is required except for loopback development. Redirects are rejected. There is no auth-mode or tenant-ID setting.
+## Configure and validate
+
+Follow the [configuration guide](../docs/declarative-instrumentation.md) to bind an existing agent identity, application entrypoint, and selected functions. The file stem supplies the agent name. Startup validates the identity and Rules; it does not create agents or attach Rules. Set `schemas.publish: true` only when you intend to update compatible Step schemas on an existing agent.
+
+After adding the validator script described in the [offline validation guide](../docs/configuration-validation.md), validate files before startup:
+
+```sh
+npm run --silent config:validate -- ./norma-agents --json
+```
+
+Validation checks configuration without importing application code, resolving bindings or environment references, or contacting Norma. Startup resolves bindings and authorization. See the [configuration reference](../docs/configuration-ux.md) for field and selector support.
+
+```ts
+import { configure } from "norma-sdk";
+
+const configured = await configure("norma-agents", {
+  bindings: { application, tools },
+});
+try {
+  await application.serve();
+} finally {
+  const receipts = await configured.close();
+}
+```
+
+Configure once for the process lifetime; serve requests through the bound entrypoints and close the handle during shutdown.
+
+## Advanced SDK: direct clients and checkpoints
+
+Use the manual API when you need explicit client control, schema registration, or an integration outside the configuration model. Do not bind the same function both manually and through configuration.
 
 ```ts
 import { NormaClient, checkpoint } from "norma-sdk";
 
 const client = new NormaClient();
 client.init({ agentName: "support-agent" });
-
-// Registration requires this application name to be authorized by the key.
 await client.agents.register({
   agent: { agentName: "support-agent" },
   steps: [{ type: "tool", name: "send_message", inputSchema: { type: "object" } }],
 });
-
 const send = checkpoint(async (message: string) => {
-  return sendMessage(message); // your application function
+  return sendMessage(message);
 }, { client, stepName: "send_message" });
 await send("Hello");
 await client.flushObservability();
 ```
 
-`agentName` identifies your application agent, not a customer account. `runtimeUrl` and `agentKey` may be provided explicitly to `init` instead of the two environment variables. Keep keys on a trusted server. A custom `HTTPClient` is an advanced trusted transport boundary.
-
-The runtime must support `hosted-v1`: every check sends `execution_mode: "hosted"` and requires `execution_contract: "hosted-v1"` in the response. Missing proof fails closed; an older runtime must be upgraded. The runtime must reject local-only rules from the same effective-rule snapshot used to evaluate.
-
-For pure authored-rule checks and the opt-in Console controls receipt/evidence flow, see the [controls guide](../docs/controls.md). The controls option only negotiates read/check projections; authoring and changing per-agent values remain Console operations.
-
-`checkpoint` evaluates before and after one invocation. A denied or failed precheck prevents the function from running. A failed postcheck raises `CheckError` after the function has run; do not automatically replay that action. `RuleViolationError` and `RuleSteerError` expose rule and check IDs. `checkFinish` and `TurnRecorder` support bounded final-turn checks and action recording.
+The client also exposes explicit checks, turn checks, reporting, and operation receipts. A check returns a decision; application code controls action execution. See [Advanced SDK](https://norma-platform.cloud/docs/sdk-advanced) and [SDK configuration](https://norma-platform.cloud/docs/sdk-configuration).
 
 ## Recover from a schema conflict
 
@@ -186,7 +209,7 @@ The client also provides agent registration/read/update, evaluator discovery, bi
 
 Public APIs expose Rules and Decisions, including agent rule lists, rule bindings, error identifiers, semantic answers, and operation receipts. The runtime and SDK use the same native Rules/Checks protocol; internal codecs only validate and map snake_case JSON to typed JavaScript fields. `public-contract.json` records the allowlisted transport surface. Changes to it and DTOs must be reviewed together; builds do not read or generate from a private server schema.
 
-From this directory, use `make install`, then `make check`. The checks include lint, types, unit tests, a 14-file tarball allowlist, and ESM/CommonJS plus strict TypeScript consumers installed outside this repository without workspace links. Packages contain no source maps. `make release-check` prepares local artifacts; publication is disabled.
+From this directory, use `make install`, then `make check`. The checks include lint, types, unit tests, the reviewed tarball file allowlist, and ESM/CommonJS plus strict TypeScript consumers installed outside this repository without workspace links. Packages contain no source maps. `make release-check` prepares local artifacts; publication is disabled.
 
 Licensed under Apache-2.0. Preserve `LICENSE` and `THIRD_PARTY_NOTICES` when redistributing.
 
@@ -196,15 +219,12 @@ Use `client.agents.listRules({ agentName })`, `client.ruleBindings.list({ ruleId
 
 Operation receipts expose `rules` and a normalized `decision` (including the retained `outcome`). A historical unsupported rule remains visible with `status: "unsupported"` and a null definition; it cannot become an authorable hosted `RuleDefinition`. New operations still reject unsupported rule snapshots. Authored definitions default to hosted execution; an explicit execution value must be `"server"`.
 
-In `4.0.0-dev.2`, `semanticDefinition()` accepts compact semantic configuration: identity and managed release may be omitted for the server to assign, and each decision rule can infer its `type` from the referenced question. Explicit release pins, identity, evidence requirements, thresholds, and uncertainty policies are preserved. Canonical runtime responses retain their recorded metadata.
+`semanticDefinition()` accepts compact semantic configuration: the server supplies
+identity and managed release when omitted, and a decision rule can infer its type
+from the referenced question. Explicit identity, release pins, evidence requirements,
+thresholds, and uncertainty policies are preserved.
 
 ### Compact semantic configuration
-
-**Version compatibility:** `4.0.0-dev.2` supports the compact example below. The
-older `4.0.0-dev.1` download requires `definition_id`, `check_release` and each
-decision rule's `type` in `semanticDefinition()`. Retain those explicit fields when
-using that older helper. Its control helper also requires explicit
-`execution: "server"`; see the [controls guide](../docs/controls.md).
 
 The helper validates configuration locally; it does not call a model, save a rule,
 or attach it to an agent. Pass its result as the semantic evaluator's `config`
@@ -250,10 +270,11 @@ and defaults to `"server"`; SDK-local evaluation is unsupported. The hosted
 `execution_mode`/`execution_contract` proof described above remains required on
 check requests and responses.
 
-This version uses native Rules/Checks routes and fields throughout. Semantic authoring uses statement, choice, and score forms; alternate authoring vocabularies and runtime conversion helpers are removed. Statement answers use `type: "statement"` and `support_score`. Caller-owned payloads and evidence are preserved without recursively renaming their keys.
+Semantic questions use `statement`, `choice`, or `score` types. Caller-owned
+payloads and evidence keep their exact JSON keys.
 
-Operation `decision.allowed` follows the validated retained operation outcome, including explicitly nonblocking observe rules and `unresolvedPolicy: "allow"`. Evaluator errors never grant new permission: historical receipts can retain `outcome: "allow"` from older permissive error policies while reporting `allowed: false`. Checkpoints remain strict and block an unsafe runtime check. A failed reconfiguration invalidates the previous client identity.
+Operation `decision.allowed` follows the validated retained operation outcome, including explicitly nonblocking observe rules and `unresolvedPolicy: "allow"`. `errorPolicy` remains `"block"`; `unresolvedPolicy` defaults to `"block"` but accepts `"allow"` for engine unresolved-check handling. That setting does not allow evaluator errors. Historical receipts can retain `outcome: "allow"` from older permissive error policies while reporting `allowed: false`. Checkpoints remain strict and block an unsafe runtime check. A failed reconfiguration invalidates the previous client identity.
 
-## Optional OpenAI Agents integration
+## OpenAI Agents integration
 
-Use `normaTool` from `norma-sdk/openai-agents` with separately installed `@openai/agents@0.20.0` for native function-tool guardrails and per-agent call records. See [the integration guide](https://github.com/norma-platform/norma-sdk/blob/main/typescript/OPENAI_AGENTS.md) for supported schemas and enforcement limits. Generic `checkpoint` remains available without framework dependencies.
+Use `normaTool` from `norma-sdk/openai-agents` with separately installed `@openai/agents@0.20.0` for native function-tool guardrails and per-agent call records. See [the integration guide](https://github.com/norma-platform/norma-sdk/blob/main/typescript/OPENAI_AGENTS.md) for supported schemas and enforcement limits. The direct `normaTool` API exposes per-tool `resolveClient(data)` and `resolveRequestContext(data)` hooks; declarative configuration binds clients at Agent level and context at entrypoint level, with no per-tool resolver fields. Generic `checkpoint` remains available without framework dependencies.

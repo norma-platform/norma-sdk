@@ -26,8 +26,12 @@ class PackagePayloadTests(unittest.TestCase):
         # Given: the explicit public package boundary, without app or customer source.
         self.files = {name: b"synthetic public SDK" for name in QUALIFIER.PAYLOAD_FILES}
         self.files["package/package.json"] = json.dumps({
-            "name": "norma-sdk", "version": "3.2.1-dev.1", "dependencies": {"zod": "^4.1.11"},
+            "name": "norma-sdk", "version": "4.0.0-dev.15",
+            "bin": {"norma": "dist/cli.cjs"}, "dependencies": {
+                "ajv": "^8", "yaml": "^2", "zod": "^4.1.11",
+            },
         }).encode()
+        self.files["package/dist/cli.cjs"] = b"#!/usr/bin/env node\nsynthetic CLI"
         for name in ("LICENSE", "THIRD_PARTY_NOTICES"):
             self.files[f"package/{name}"] = (SDK / name).read_bytes()
 
@@ -53,6 +57,23 @@ class PackagePayloadTests(unittest.TestCase):
         # Then: every public file is accounted for by content hash.
         self.assertEqual(result["name"], "norma-sdk")
         self.assertEqual(len(result["files"]), len(self.files))
+
+    def test_accepts_paired_runtime_chunks_from_lazy_optional_adapters(self) -> None:
+        self.files["package/dist/chunk-Optional123.js"] = b"esm chunk"
+        self.files["package/dist/chunk-Optional123.cjs"] = b"cjs chunk"
+        result = self.inspect()
+        self.assertEqual(len(result["files"]), len(self.files))
+
+    def test_accepts_paired_preemitted_declaration_chunk(self) -> None:
+        self.files["package/dist/checkpoint.d-Types123.d.ts"] = b"export type Check = string;"
+        self.files["package/dist/checkpoint.d-Types123.d.cts"] = b"export type Check = string;"
+        result = self.inspect()
+        self.assertEqual(len(result["files"]), len(self.files))
+
+    def test_rejects_unpaired_runtime_chunk(self) -> None:
+        self.files["package/dist/chunk-Optional123.js"] = b"esm chunk"
+        with self.assertRaisesRegex(RuntimeError, "Unexpected runtime chunk graph"):
+            self.inspect()
 
     def test_rejects_transitive_wire_declaration_leaks(self) -> None:
         for token in ("NormaSDKCore", "RuleDefinitionOutput", "namespaceKey",
@@ -88,7 +109,8 @@ class PackagePayloadTests(unittest.TestCase):
 
     def test_rejects_workspace_runtime_dependency(self) -> None:
         self.files["package/package.json"] = json.dumps({
-            "name": "norma-sdk", "version": "0.0.0", "dependencies": {"zod": "workspace" + ":*"},
+            "name": "norma-sdk", "version": "0.0.0", "bin": {"norma": "dist/cli.cjs"},
+            "dependencies": {"zod": "workspace" + ":*"},
         }).encode()
         with self.assertRaisesRegex(RuntimeError, "independent of the app"):
             self.inspect()
@@ -157,7 +179,7 @@ class InstalledDependencyTests(unittest.TestCase):
             (source / "package.json").write_text(json.dumps({
                 "name": "zod", "version": "4.3.6", "dependencies": {"unreviewed": "*"},
             }))
-            with self.assertRaisesRegex(RuntimeError, "transitive dependency set"):
+            with self.assertRaisesRegex(RuntimeError, "dependency graph differs"):
                 QUALIFIER.pack_installed_dependency(source, root, "zod")
 
     def test_failure_diagnostics_exclude_subprocess_payloads(self) -> None:

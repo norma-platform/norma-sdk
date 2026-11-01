@@ -1,0 +1,12 @@
+version: 2
+entrypoints:
+  - target: application.stream
+    turn:
+      session_id:
+        path: [args, 0]
+      turn_id:
+        path: [args, 1]
+      finish:
+        stream: {}
+        on_hold: raise
+checkpoints: {}

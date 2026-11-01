@@ -1,0 +1,20 @@
+version: 2
+entrypoints:
+  - target: application.respond
+    turn:
+      session_id: {path: [params, request, session_id]}
+      turn_id: {path: [params, request, turn_id]}
+      user_request: {path: [input, message]}
+      application: norma-agent-runtime
+      application_version: "3.2"
+      finish:
+        driver: generic
+        final_message: {path: [result, message]}
+        on_hold: raise
+checkpoints: {}
+connection:
+  control_contract: rule-controls
+telemetry:
+  enabled: false
+refresh:
+  interval_seconds: 0

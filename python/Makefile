@@ -12,7 +12,7 @@ lint:
 	$(PYTHON) -m ruff check src tests
 
 typecheck:
-	$(PYTHON) -m mypy src/norma
+	$(PYTHON) -m mypy src/norma src/_norma_config
 
 check: lint typecheck test
 

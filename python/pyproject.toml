@@ -1,7 +1,7 @@
 # Modified for Norma.
 [project]
 name = "norma-sdk"
-version = "8.7.1.dev4"
+version = "8.7.1.dev18"
 description = "Python SDK for Norma - govern AI agents with policies and rules"
 requires-python = ">=3.12"
 dependencies = [
@@ -9,6 +9,9 @@ dependencies = [
     "pydantic>=2.12.0",
     "pydantic-settings>=2.0.0",  # For typed configuration via environment variables
     "docstring-parser>=0.15",  # For @tool decorator schema inference
+    "jsonschema>=4.18",
+    "referencing>=0.30.0",
+    "ruamel.yaml>=0.18",
 ]
 authors = [
     {name = "Norma Contributors"}
@@ -26,7 +29,7 @@ classifiers = [
 ]
 
 [project.scripts]
-norma = "norma.cli:main"
+norma = "_norma_config.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/norma-platform/norma-sdk"
@@ -49,7 +52,7 @@ dev = [
     "build>=1.2",
     "hatchling>=1.27",
     "editables>=0.5",
-    "jsonschema>=4.0",
+    "jsonschema>=4.18",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.0.0",
@@ -68,12 +71,13 @@ build-backend = "hatchling.build"
 # Only the hosted SDK namespace is distributed.
 packages = [
     "src/norma",
+    "src/_norma_config",
 ]
 
 [tool.hatch.build.targets.sdist]
 # An external source build needs only the package and its metadata. In particular,
 # never ship checkout test fixtures, local configuration, or acceptance receipts.
-include = ["/src/norma", "/pyproject.toml", "/README.md", "/GOOGLE_ADK.md", "/OPENAI_AGENTS.md", "/LICENSE", "/NOTICE"]
+include = ["/src/norma", "/src/_norma_config", "/pyproject.toml", "/README.md", "/GOOGLE_ADK.md", "/OPENAI_AGENTS.md", "/LICENSE", "/NOTICE"]
 
 [tool.ruff]
 line-length = 100

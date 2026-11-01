@@ -1,10 +1,34 @@
 <!-- Modified for Norma. -->
 # OpenAI Agents function tools
 
-Install `pip install 'norma-sdk[openai-agents]'`. This adapter is tested against
-**openai-agents 0.22.3** on Python 3.12; its dependency range is `>=0.22.3,<0.23`.
-Other patch releases in that range have not each been tested. Norma itself remains
-importable without this optional dependency.
+For a new application, use version 2 declarative configuration to bind an
+existing OpenAI Agent, its application entrypoint, and function tools at startup.
+This page's explicit `AgentBinding` and `protect_function_tool` API remains an
+advanced path for direct guardrail composition.
+
+For example, configure an existing Agent and native function tool at startup:
+
+```yaml
+version: 2
+entrypoints:
+  - target: application.serve
+adapters:
+  support:
+    kind: openai_agents
+    agent: {binding: agents.support}
+    tools:
+      send_message:
+        tool: {binding: tools.send_message}
+        action:
+          kind: other
+          target: {path: [args, 0, recipient]}
+checkpoints: {}
+```
+
+Call `await norma.aconfigure("norma-agents", bindings=...)` once for the
+application lifetime; ordinary requests reuse the configured entrypoint.
+
+Download the supplied [Python wheel](https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev18-py3-none-any.whl), save it in your project, then install the Agents extra: `python -m pip install './norma_sdk-8.7.1.dev18-py3-none-any.whl[openai-agents]'`. The adapter dependency is `openai-agents>=0.22.3,<0.23`.
 
 The adapter protects ordinary `FunctionTool` calls made by the official Runner.
 It uses awaited native input guardrails plus an invocation-time comparison of the

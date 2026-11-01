@@ -35,7 +35,11 @@ from .checkpoints import (
 )
 from .client import NormaClient
 from .configuration import resolve_environment, resolve_url
-from .control_contract import ControlContract, UnsupportedControlContractError
+from .control_contract import (
+    ControlContract,
+    UnsupportedControlContractError,
+    normalize_control_contract,
+)
 from .controls import (
     BooleanControlDeclaration,
     ControlApplicabilityOperator,
@@ -58,7 +62,8 @@ from .controls import (
     validate_authored_controls,
 )
 from .errors import ControlRequestDiagnostic, NormaAPIError
-from .finish import TurnRecorder, check_finish
+from .finish import FinishHeldError, TurnRecorder, check_finish
+from .instrumentation import ConfiguredAgents, aconfigure, configure, parse_instrumentation
 from .models import (
     Agent,
     ControlEvidenceSnapshot,
@@ -99,6 +104,7 @@ logger = get_logger(__name__)
 # ============================================================================
 
 # Import state container to avoid circular imports
+from ._state import get_state as _get_selected_state  # noqa: E402
 from ._state import state as _session_state  # noqa: E402
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -434,8 +440,7 @@ def init(
     normalized_name = ensure_agent_name(resolved_agent_name)
     if conflict_mode not in ("strict", "overwrite"):
         raise ValueError("conflict_mode must be 'strict' or 'overwrite'.")
-    if control_contract not in (None, "rule-controls-v1"):
-        raise ValueError("control_contract must be 'rule-controls-v1' or None.")
+    control_contract = normalize_control_contract(control_contract)
     if policy_refresh_interval_seconds < 0:
         raise ValueError("policy_refresh_interval_seconds must be >= 0")
     if (target_type is None) != (target_id is None):
@@ -698,7 +703,7 @@ def current_agent() -> Agent | None:
         agent = norma.current_agent()
         print(agent.agent_name)  # "My Bot"
     """
-    return _session_state.current_agent
+    return _get_selected_state().current_agent
 
 
 async def list_agents(
@@ -781,6 +786,10 @@ __all__ = [
     "RuleViolationError",
     "RuleSteerError",
     "checkpoint",
+    "parse_instrumentation",
+    "configure",
+    "aconfigure",
+    "ConfiguredAgents",
     "checkpoint_schemas",
     "init",
     "shutdown",
@@ -796,6 +805,7 @@ __all__ = [
     "agents",
     "operations",
     "TurnRecorder",
+    "FinishHeldError",
     "check_finish",
     "DeliveryReceipt",
     "with_trace",
@@ -840,8 +850,17 @@ async def evaluate_rules(
     span_id: str | None = None,
 ) -> Decision:
     """Check a proposal in the initialized hosted session; inspect its Decision."""
-    if _session_state.current_agent is None:
+    selected = _get_selected_state()
+    if selected.current_agent is None:
         raise CheckError("Norma is not initialized; Rule check blocked.")
+    from ._state import active_state
+
+    try:
+        selected.require_agent_identity()
+    except RuntimeError as exc:
+        raise CheckError(str(exc)) from exc
+    if active_state() is selected and agent_name != selected.current_agent.agent_name:
+        raise CheckError("Rule check Agent must match the selected configured session.")
     response = await _evaluate_rules(
         step_name,
         agent_name=agent_name,

@@ -7,8 +7,11 @@ invocation path only. Direct Python calls and other tool kinds require checkpoin
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
-from collections.abc import Callable, Sequence
+import time
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
@@ -45,6 +48,7 @@ except ImportError as exc:  # pragma: no cover - outside optional installation
 
 from norma import checks
 from norma.client import NormaClient
+from norma.finish import _record_decorated_action
 from norma.models import Decision, JSONObject, JSONValue, Step, redact_turn_text
 from norma.models.base import BaseModel
 from norma.models.server import GetAgentResponse
@@ -66,11 +70,12 @@ class AgentBinding:
     """
 
     agent: _Agent[Any]
-    client: NormaClient
+    client: NormaClient | None
     agent_name: str
     target_type: str | None = None
     target_id: str | None = None
     _initialized_client: _httpx.AsyncClient | None = field(default=None, init=False, repr=False)
+    _session: Any | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "agent_name", ensure_agent_name(self.agent_name))
@@ -79,7 +84,14 @@ class AgentBinding:
 
     async def initialize(self) -> None:
         """Verify the registered agent; any failure leaves this binding unusable."""
+        if self._session is not None:
+            self._session.require_agent_identity()
+            if self._session.closed:
+                raise RuntimeError("Configured Agent session is closed")
+            return
         object.__setattr__(self, "_initialized_client", None)
+        if self.client is None:
+            raise RuntimeError("AgentBinding requires a NormaClient")
         opened = self.client.http_client
         if opened.is_closed:
             raise RuntimeError("Initialize AgentBinding with an open NormaClient")
@@ -95,8 +107,17 @@ class AgentBinding:
         object.__setattr__(self, "_initialized_client", opened)
 
     def _require_ready(self) -> None:
+        if self._session is not None:
+            if self._session.closed:
+                raise RuntimeError("Configured Agent session is closed")
+            try:
+                self._session.require_agent_identity()
+            except RuntimeError as exc:
+                raise RuntimeError("Configured Agent identity is no longer active") from exc
+            return
         if (
             self._initialized_client is None
+            or self.client is None
             or self.client.http_client is not self._initialized_client
             or self._initialized_client.is_closed
         ):
@@ -129,6 +150,9 @@ class _Proposal:
     canonical: str
     call_id: str
     evidence: str
+    target_type: str | None
+    target_id: str | None
+    action: Mapping[str, object] | None
 
 
 def _object_pairs(pairs: list[tuple[str, JSONValue]]) -> JSONObject:
@@ -146,6 +170,65 @@ def _parse_arguments(raw: str) -> tuple[JSONObject, str]:
     return parsed, canonical
 
 
+def _original_agent_for(agent: _Agent[Any]) -> _Agent[Any]:
+    """Resolve only the exact helper-owned clone registered in the active context."""
+    try:
+        from .openai_agents_finish import _original_agent_for_finish_clone
+
+        return _original_agent_for_finish_clone(agent)
+    except ImportError:  # pragma: no cover - the optional finish helper is loaded lazily
+        return agent
+
+
+def _binding_request_scope(
+    binding: AgentBinding,
+) -> tuple[str | None, str | None, JSONObject]:
+    if binding._session is not None:
+        from .._request_context import current_invocation
+
+        invocation = current_invocation(binding._session)
+        if invocation is not None:
+            return invocation.target_type, invocation.target_id, dict(invocation.context)
+        return (
+            binding._session.target_type,
+            binding._session.target_id,
+            {},
+        )
+    return binding.target_type, binding.target_id, {}
+
+
+async def _check_binding(
+    binding: AgentBinding,
+    step: Step,
+    stage: Literal["pre", "post"],
+    *,
+    target_type: str | None,
+    target_id: str | None,
+) -> Decision:
+    if binding._session is None:
+        if binding.client is None:
+            raise RuntimeError("AgentBinding requires a NormaClient")
+        return await checks.check(
+            binding.client,
+            binding.agent_name,
+            step,
+            stage,
+            target_type=target_type,
+            target_id=target_id,
+        )
+    from norma.client import new_session_client
+
+    async with new_session_client(NormaClient, binding._session) as client:
+        return await checks.check(
+            client,
+            binding.agent_name,
+            step,
+            stage,
+            target_type=target_type,
+            target_id=target_id,
+        )
+
+
 def protect_function_tool(
     tool: _FunctionTool,
     *,
@@ -153,6 +236,10 @@ def protect_function_tool(
     step_name: str | None = None,
     check_output: bool = False,
     context_extractor: Callable[[_ToolContext[Any]], JSONObject] | None = None,
+    action_resolver: Callable[
+        [dict[str, object]], Mapping[str, object] | Awaitable[Mapping[str, object]]
+    ]
+    | None = None,
 ) -> _FunctionTool:
     """Copy a function tool with awaited prechecks and optional output checks.
 
@@ -181,8 +268,22 @@ def protect_function_tool(
         f"norma_completed_{tool.name}", default=None
     )
     original_invoke = tool.on_invoke_tool
+    business_invoke = original_invoke
+    original_handled_error: Callable[
+        [_FunctionTool, Exception, str, _ToolContext[Any]], None
+    ] | None = None
+    if action_resolver is not None:
+        from agents.tool import _FailureHandlingFunctionToolInvoker
+
+        if not isinstance(original_invoke, _FailureHandlingFunctionToolInvoker):
+            raise TypeError(
+                "Action recording requires an OpenAI FunctionTool failure-handling invoker"
+            )
+        business_invoke = original_invoke._invoke_tool_impl
+        original_handled_error = original_invoke._on_handled_error
 
     def binding_for(agent: _Agent[Any]) -> AgentBinding:
+        agent = _original_agent_for(agent)
         binding = next((item for item in configured if item.agent is agent), None)
         if binding is None:
             raise RuntimeError("Active agent has no trusted Norma binding")
@@ -197,6 +298,7 @@ def protect_function_tool(
         captured_agent = data.agent
         captured_context = data.context
         captured_call_id = data.context.tool_call_id
+        action_snapshot: Mapping[str, object] | None = None
         record = ToolCheckRecord(
             agent_name=None,
             framework_agent_name=data.agent.name,
@@ -225,13 +327,34 @@ def protect_function_tool(
                     raise RuntimeError("No completed checked proposal exists for this postcheck")
                 arguments, canonical = _parse_arguments(original.canonical)
                 context = _OBJECT.validate_json(original.evidence, strict=True)
+                target_type, target_id = original.target_type, original.target_id
             else:
                 arguments, canonical = _parse_arguments(data.context.tool_arguments)
-                context = (
+                extracted_context = (
                     _OBJECT.validate_python(context_extractor(data.context), strict=True)
                     if context_extractor
                     else {}
                 )
+                target_type, target_id, scoped_context = _binding_request_scope(binding)
+                if action_resolver is not None:
+                    resolved_action = await _maybe_await(
+                        action_resolver(
+                            {
+                                "args": [arguments],
+                                "kwargs": {},
+                                "context": dict(scoped_context),
+                                "agent_name": binding.agent_name,
+                            }
+                        )
+                    )
+                    if not isinstance(resolved_action, Mapping):
+                        raise TypeError("Configured action resolver must return an action object")
+                    action_snapshot = dict(resolved_action)
+                if set(extracted_context) & set(scoped_context):
+                    raise ValueError(
+                        "Configured request context conflicts with extracted tool context"
+                    )
+                context = {**scoped_context, **extracted_context}
                 if "norma" in context:
                     raise ValueError(
                         "The norma context key is reserved for trusted call correlation"
@@ -246,9 +369,8 @@ def protect_function_tool(
                 }
             evidence = json.dumps(context, allow_nan=False, sort_keys=True)
             value = _JSON.validate_python(output, strict=True) if stage == "post" else None
-            decision = await checks.check(
-                binding.client,
-                binding.agent_name,
+            decision = await _check_binding(
+                binding,
                 Step(
                     type="tool",
                     name=name,
@@ -259,8 +381,8 @@ def protect_function_tool(
                     ground_truth=None,
                 ),
                 stage,
-                target_type=binding.target_type,
-                target_id=binding.target_id,
+                target_type=target_type,
+                target_id=target_id,
             )
             binding._require_ready()
             if (
@@ -281,6 +403,8 @@ def protect_function_tool(
                 for item in decision.checks
             )
             if failed:
+                if stage == "pre" and action_snapshot is not None:
+                    _record_action_snapshot(name, action_snapshot, "unknown")
                 return _ToolGuardrailFunctionOutput.raise_exception(record)
             blocking = [
                 item
@@ -288,12 +412,16 @@ def protect_function_tool(
                 if item.mode == "enforce" and item.status in {"matched", "unresolved"}
             ]
             if any((item.effective_action or item.action) == "deny" for item in blocking):
+                if stage == "pre" and action_snapshot is not None:
+                    _record_action_snapshot(name, action_snapshot, "denied")
                 return _ToolGuardrailFunctionOutput.raise_exception(record)
             steering = next(
                 (item for item in blocking if (item.effective_action or item.action) == "steer"),
                 None,
             )
             if steering is not None:
+                if stage == "pre" and action_snapshot is not None:
+                    _record_action_snapshot(name, action_snapshot, "denied")
                 guidance = (
                     steering.steering_context.message
                     if steering.steering_context
@@ -303,6 +431,8 @@ def protect_function_tool(
                     redact_turn_text(guidance)[:2000], record
                 )
             if not decision.allowed:
+                if stage == "pre" and action_snapshot is not None:
+                    _record_action_snapshot(name, action_snapshot, "denied")
                 return _ToolGuardrailFunctionOutput.raise_exception(record)
             if stage == "pre":
                 approved.set(
@@ -313,6 +443,9 @@ def protect_function_tool(
                         canonical,
                         captured_call_id,
                         evidence,
+                        target_type,
+                        target_id,
+                        action_snapshot,
                     )
                 )
             return _ToolGuardrailFunctionOutput.allow(record)
@@ -321,6 +454,21 @@ def protect_function_tool(
             record.error = type(exc).__name__
             if isinstance(exc, _httpx.HTTPStatusError):
                 record.http_status = exc.response.status_code
+            if action_snapshot is not None:
+                blocked = decision is not None and (
+                    not decision.allowed
+                    or any(
+                        item.mode == "enforce"
+                        and item.status in {"matched", "unresolved"}
+                        for item in decision.checks
+                    )
+                )
+                _record_action_snapshot(
+                    name,
+                    action_snapshot,
+                    "denied" if blocked else "unknown",
+                    error=exc,
+                )
             return _ToolGuardrailFunctionOutput.raise_exception(record)
 
     async def before(data: _ToolInputGuardrailData) -> _ToolGuardrailFunctionOutput:
@@ -360,7 +508,26 @@ def protect_function_tool(
             ) from exc
         # A one-shot capability in this invocation task, never a global permission cache.
         approved.set(None)
-        result = await original_invoke(context, raw)
+        started = time.monotonic()
+        try:
+            result = await business_invoke(context, raw)
+        except BaseException as exc:
+            if proposal.action is not None:
+                _record_action_snapshot(
+                    name,
+                    proposal.action,
+                    "unknown" if isinstance(exc, asyncio.CancelledError) else "failed",
+                    error=exc,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                )
+            raise
+        if proposal.action is not None:
+            _record_action_snapshot(
+                name,
+                proposal.action,
+                "succeeded",
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
         if check_output:
             completed.set(proposal)
         return result
@@ -374,9 +541,53 @@ def protect_function_tool(
     outputs = list(tool.tool_output_guardrails or [])
     if check_output:
         outputs.append(_ToolOutputGuardrail(guardrail_function=after, name="norma_rules_post"))
+    protected_invoke: Callable[[_ToolContext[Any], str], Awaitable[Any]] = invoke
+    if original_handled_error is not None:
+        from agents.tool import _FailureHandlingFunctionToolInvoker
+
+        protected_invoke = _FailureHandlingFunctionToolInvoker(
+            invoke,
+            original_handled_error,
+        )
     return replace(
         tool,
-        on_invoke_tool=invoke,
+        on_invoke_tool=protected_invoke,
         tool_input_guardrails=[*(tool.tool_input_guardrails or []), guard],
         tool_output_guardrails=outputs,
+    )
+
+
+async def _maybe_await(value: object) -> object:
+    return await value if inspect.isawaitable(value) else value
+
+
+def _record_action_snapshot(
+    name: str,
+    action: Mapping[str, object],
+    status: Literal["succeeded", "failed", "denied", "unknown"],
+    *,
+    result: object = None,
+    error: BaseException | None = None,
+    duration_ms: int | None = None,
+) -> None:
+    if "cwd" in action:
+        raise ValueError("OpenAI native tool actions do not retain cwd in TurnRecord evidence")
+    kind = action.get("kind", "other")
+    if kind not in {"shell", "edit", "read", "search", "web", "mcp", "task", "other"}:
+        raise ValueError("Configured action kind is invalid")
+    text_fields: dict[str, str | None] = {}
+    for key in ("target", "command"):
+        value = action.get(key)
+        if value is not None and not isinstance(value, str):
+            raise TypeError(f"Configured action {key} must resolve to a string or null")
+        text_fields[key] = value
+    _record_decorated_action(
+        name,
+        status,
+        kind=kind,
+        target=text_fields["target"],
+        command=text_fields["command"],
+        result=result,
+        error=error,
+        duration_ms=duration_ms,
     )

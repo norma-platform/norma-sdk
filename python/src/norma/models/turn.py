@@ -83,6 +83,11 @@ class ContinuationState(_StrictTurnModel):
 
     count: int = Field(ge=0)
     max: int = Field(default=2, ge=0, le=3)
+    agent_generation: str | None = Field(
+        default=None,
+        max_length=128,
+        exclude_if=lambda value: value is None,
+    )
 
 
 class TurnRecord(_StrictTurnModel):

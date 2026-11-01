@@ -3,8 +3,20 @@ import { defaultClient } from "./client";
 
 export { NormaClient } from "./client";
 export { UnsupportedControlContractError } from "./control-contract";
-export type { ControlContract } from "./control-contract";
+export type { ControlContract, ControlContractInput } from "./control-contract";
 export { checkpoint } from "./checkpoint";
+export { configure, parseInstrumentation } from "./instrumentation";
+export type {
+  ConfigureOptions, ConfiguredAgents, InstrumentationCheckpoint, InstrumentationConfig,
+  InstrumentationConfigV1, InstrumentationConfigV2, InstrumentationConnection,
+  InstrumentationTelemetry, InstrumentationEntrypoint, InstrumentationAction,
+  InlineCheckpointOptions, BindingReference, EnvironmentReference, ValueRoot,
+  ValueSource, ConfiguredActionValue, StateProvider, InstrumentationSchemaOptions,
+  InstrumentationTurn, InstrumentationTurnFinish, InstrumentationNativeTurnFinish,
+  InstrumentationStreamFinish, InstrumentationStreamTurnFinish,
+  InstrumentationOperation, InstrumentationOperationObservation, InstrumentationAdapter,
+  InstrumentationOpenAIToolDefinition, InstrumentationOpenAINativeTool,
+} from "./instrumentation";
 export { checkFinish, TurnRecorder } from "./finish";
 export type { ActionSummary, FinishVerdict, TurnRecord, RecordAction, TurnRecorderOptions } from "./finish";
 export type { ActionKind, NormaAction, CheckpointOptions } from "./checkpoint";
@@ -12,7 +24,7 @@ export type {
   CheckOutcome, SemanticAnswer, SemanticObservation, SemanticEvidenceItem,
   SemanticEvidenceBundle, RecoveryFeedback, RecoveryEvidenceReference,
 } from "./internal/semantic-check";
-export { CheckError, RuleViolationError, RuleSteerError } from "./errors";
+export { CheckError, RuleViolationError, RuleSteerError, FinishHeldError } from "./errors";
 export type { RuleFailureContext } from "./errors";
 export type {
   NormaInitOptions,

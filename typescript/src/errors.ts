@@ -2,6 +2,7 @@
 import type { Decision } from "./public-api";
 import { NormaAPIError } from "./api-error";
 import type { RecoveryFeedback } from "./internal/semantic-check";
+import type { FinishVerdict } from "./finish";
 
 export type RuleDecision = "deny" | "steer" | "observe";
 
@@ -68,6 +69,18 @@ export class CheckError extends Error {
     this.recoveryFeedback = params.recoveryFeedback;
     this.checkIds = params.checkIds;
     this.decision = params.decision;
+  }
+}
+
+/** A turn was held after the application call returned; the original result is retained for caller inspection. */
+export class FinishHeldError extends Error {
+  readonly result: unknown;
+  readonly verdict: FinishVerdict;
+  constructor(result: unknown, verdict: FinishVerdict) {
+    super("Norma held the completed turn.");
+    this.name = "FinishHeldError";
+    this.result = result;
+    this.verdict = verdict;
   }
 }
 

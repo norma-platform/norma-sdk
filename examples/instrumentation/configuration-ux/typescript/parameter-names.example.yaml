@@ -1,0 +1,16 @@
+version: 2
+entrypoints:
+  - target: application.handle
+    parameter_names: [request, options]
+    turn:
+      session_id:
+        path: [params, request, session_id]
+      turn_id:
+        path: [input, turn_id]
+      user_request:
+        path: [params, request, prompt]
+      finish:
+        final_message:
+          path: [result]
+        on_hold: raise
+checkpoints: {}

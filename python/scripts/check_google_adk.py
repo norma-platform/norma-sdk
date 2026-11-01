@@ -14,7 +14,9 @@ import importlib.metadata
 import json
 import os
 import sys
+import uuid
 from collections.abc import AsyncGenerator
+from types import SimpleNamespace
 from typing import Any
 
 for key in list(os.environ):
@@ -40,6 +42,8 @@ from google.genai import types
 from pydantic import PrivateAttr
 
 import norma
+from norma._state import get_state
+from norma._state import state as legacy_state
 from norma.integrations.google_adk import NormaPlugin
 
 NAME = "adk-real-agent"
@@ -67,6 +71,7 @@ class HostedBoundary:
         self.mode = mode
         self.steps: list[dict[str, Any]] = []
         self.requests: list[dict[str, Any]] = []
+        self.check_headers: list[str] = []
         self.registrations = 0
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -96,8 +101,24 @@ class HostedBoundary:
             raise AssertionError(f"Unexpected request {path}")
         data = json.loads(request.content)
         self.requests.append(data)
+        self.check_headers.append(request.headers.get("X-API-Key", ""))
         if self.mode == "outage":
             raise httpx.ConnectError("Simulated hosted outage", request=request)
+        if data.get("step", {}).get("type") == "turn":
+            return httpx.Response(
+                200,
+                json={
+                    "execution_contract": "hosted-v1",
+                    "verdict": "pass",
+                    "reason": "Complete",
+                    "reason_codes": [],
+                    "held_by": [],
+                    "would_hold_by": [],
+                    "continuation": data["step"]["input"]["continuation"],
+                    "allow_finish": True,
+                    "outcome": "completed",
+                },
+            )
         result: dict[str, Any] = {
             "allowed": True,
             "confidence": 1,
@@ -240,6 +261,263 @@ async def exercise(
         "failure": failure,
         "events": events,
     }
+
+
+@pytest.mark.asyncio
+async def test_real_runner_uses_configured_entrypoint_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sync ADK bind and async Runner stay inside the configured session."""
+    await norma.ashutdown()
+    boundary = HostedBoundary("allow")
+    original = httpx.AsyncClient
+
+    class MockClient(original):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            kwargs["transport"] = httpx.MockTransport(boundary.handle)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", MockClient)
+    app = SimpleNamespace()
+    effects: list[str] = []
+    model = ScriptedModel()
+    agent = Agent(name=NAME.replace("-", "_"), model=model, tools=[])
+
+    def record_action(value: str) -> dict[str, str]:
+        """Record a deterministic local action."""
+        effects.append(value)
+        return {"recorded": value}
+
+    agent.tools = [*agent.tools, record_action]
+    service = InMemorySessionService()
+    runner = Runner(
+        agent=agent,
+        app_name="norma_configured",
+        session_service=service,
+    )
+
+    async def run() -> AsyncGenerator[Any, None]:
+        await service.create_session(
+            app_name="norma_configured", user_id="fixture", session_id="configured"
+        )
+        async for event in runner.run_async(
+            user_id="fixture",
+            session_id="configured",
+            new_message=types.Content(role="user", parts=[types.Part(text="Run locally")]),
+        ):
+            yield event
+
+    app.run = run
+    configured = await norma.aconfigure(
+        {
+            "version": 2,
+            "entrypoints": ["app.run"],
+            "checkpoints": {},
+            "adapters": {
+                "adk": {
+                    "kind": "google_adk",
+                    "runner": {"binding": "framework.runner"},
+                    "enabled_hooks": ["before_model", "before_tool"],
+                }
+            },
+        },
+        agent_name=NAME,
+        bindings={"app": app, "framework": {"runner": runner}},
+        connection={
+            "runtime_url": "https://tenant.example",
+            "agent_key": "configured-adk-key",
+            "observability_enabled": False,
+            "refresh_interval_seconds": 0,
+        },
+    )
+    assert boundary.registrations == 0, "bootstrap must use GET-only authentication"
+    try:
+        events = []
+        async for event in app.run():
+            events.append(event)
+            assert get_state() is legacy_state, "stream wrapper leaked session scope past a yield"
+        assert events
+        assert model._calls == 2
+        assert effects == ["ok"]
+        assert boundary.requests
+        assert set(boundary.check_headers) == {"configured-adk-key"}
+    finally:
+        await configured.aclose()
+        await norma.ashutdown()
+
+
+@pytest.mark.asyncio
+async def test_real_runner_streaming_entrypoint_closes_after_early_consumer_stop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A native ADK stream uses configured scope per advance and cleans up when closed."""
+    await norma.ashutdown()
+    boundary = HostedBoundary("allow")
+    original = httpx.AsyncClient
+
+    class MockClient(original):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            kwargs["transport"] = httpx.MockTransport(boundary.handle)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", MockClient)
+    app = SimpleNamespace()
+    model = ScriptedModel()
+    agent = Agent(name=NAME.replace("-", "_"), model=model, tools=[])
+    service = InMemorySessionService()
+    runner = Runner(agent=agent, app_name="norma_stream", session_service=service)
+
+    async def stream() -> AsyncGenerator[Any, None]:
+        await service.create_session(
+            app_name="norma_stream", user_id="fixture", session_id="partial"
+        )
+        async for event in runner.run_async(
+            user_id="fixture",
+            session_id="partial",
+            new_message=types.Content(role="user", parts=[types.Part(text="Start")]),
+        ):
+            yield event
+
+    app.stream = stream
+    configured = await norma.aconfigure(
+        {
+            "version": 2,
+            "entrypoints": ["app.stream"],
+            "checkpoints": {},
+            "adapters": {
+                "adk": {
+                    "kind": "google_adk",
+                    "runner": {"binding": "framework.runner"},
+                    "enabled_hooks": ["before_model", "before_tool"],
+                }
+            },
+        },
+        agent_name=NAME,
+        bindings={"app": app, "framework": {"runner": runner}},
+        connection={
+            "runtime_url": "https://tenant.example",
+            "agent_key": "configured-adk-key",
+            "observability_enabled": False,
+            "refresh_interval_seconds": 0,
+        },
+    )
+    try:
+        stream_iterator = app.stream()
+        first_event = await anext(stream_iterator)
+        assert first_event is not None
+        assert get_state() is legacy_state, "stream wrapper leaked session scope past a yield"
+        await stream_iterator.aclose()
+        assert get_state() is legacy_state
+        assert boundary.requests
+        assert set(boundary.check_headers) == {"configured-adk-key"}
+    finally:
+        await configured.aclose()
+        assert not runner.plugin_manager.plugins
+        await norma.ashutdown()
+
+
+@pytest.mark.asyncio
+async def test_real_runner_run_async_entrypoint_finishes_selected_stream_text_without_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The public stream finish works on ADK's native Runner.run_async generator."""
+    await norma.ashutdown()
+    boundary = HostedBoundary("allow")
+    original = httpx.AsyncClient
+
+    class MockClient(original):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            kwargs["transport"] = httpx.MockTransport(boundary.handle)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", MockClient)
+    model = ScriptedModel()
+    agent = Agent(name=NAME.replace("-", "_"), model=model, tools=[])
+
+    def record_action(value: str) -> dict[str, str]:
+        return {"recorded": value}
+
+    agent.tools = [*agent.tools, record_action]
+    service = InMemorySessionService()
+    runner = Runner(agent=agent, app_name="norma_stream_finish", session_service=service)
+
+    class TextSelector:
+        @staticmethod
+        def select(invocation: dict[str, object]) -> str | None:
+            event = invocation["result"]
+            content = getattr(event, "content", None)
+            parts = getattr(content, "parts", ())
+            text = "".join(
+                part.text for part in parts if isinstance(getattr(part, "text", None), str)
+            )
+            return text or None
+
+    callbacks = TextSelector()
+    configured = await norma.aconfigure(
+        {
+            "version": 2,
+            "entrypoints": [
+                {
+                    "target": "framework.runner.run_async",
+                    "turn": {
+                        "session_id": {"path": ["kwargs", "session_id"]},
+                        "turn_id": {"value": str(uuid.uuid4())},
+                        "finish": {
+                            "stream": {
+                                "text": {"provider": "callbacks.select"},
+                                "missing": "skip",
+                            },
+                            "on_hold": "raise",
+                        },
+                    },
+                }
+            ],
+            "checkpoints": {},
+            "adapters": {
+                "adk": {
+                    "kind": "google_adk",
+                    "runner": {"binding": "framework.runner"},
+                    "enabled_hooks": ["before_model", "before_tool"],
+                }
+            },
+        },
+        agent_name=NAME,
+        bindings={"framework": {"runner": runner}, "callbacks": callbacks},
+        connection={
+            "runtime_url": "https://tenant.example",
+            "agent_key": "configured-adk-key",
+            "observability_enabled": False,
+            "refresh_interval_seconds": 0,
+        },
+    )
+    try:
+        await service.create_session(
+            app_name="norma_stream_finish", user_id="fixture", session_id="stream-finish"
+        )
+        events = [
+            event
+            async for event in runner.run_async(
+                user_id="fixture",
+                session_id="stream-finish",
+                new_message=types.Content(
+                    role="user", parts=[types.Part(text="Run the deterministic local agent")]
+                ),
+            )
+        ]
+        assert events
+        assert model._calls == 2
+        turn_requests = [
+            request
+            for request in boundary.requests
+            if request.get("step", {}).get("type") == "turn"
+        ]
+        assert len(turn_requests) == 1
+        assert turn_requests[0]["step"]["input"]["final_message"] == "Completed locally"
+        assert boundary.check_headers[-1] == "configured-adk-key"
+    finally:
+        await configured.aclose()
+        assert not runner.plugin_manager.plugins
+        await norma.ashutdown()
 
 
 @pytest.mark.asyncio

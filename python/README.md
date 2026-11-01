@@ -1,26 +1,44 @@
 <!-- Modified for Norma. -->
 # Norma Python SDK
 
-A standalone hosted client for registration, Rule checkpoints, operation receipts,
-finish checks, framework adapters and event delivery. It contains no policy engine,
-local evaluator plugins, runtime service, deployment code or management console.
+Use the hosted Python client to bind application functions to an existing Norma agent. Install the supplied wheel, configure your agent in YAML or JSON, validate the file, then start the application.
 
-## Install and configure
+## Install and connect
 
-Requires Python 3.12+. The SDK version is `norma-sdk==8.7.1.dev4`. Install its wheel:
+Requires Python 3.12 or later. Download the supplied [Python wheel](https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev18-py3-none-any.whl) and install the downloaded local file:
 
 ```sh
-python -m pip install 'https://norma-platform.cloud/artifacts/norma_sdk-8.7.1.dev4-py3-none-any.whl'
-export NORMA_RUNTIME_URL="https://your-runtime.example/api/runtime"
-export NORMA_AGENT_KEY="your-scoped-agent-key"
+python -m pip install ./norma_sdk-8.7.1.dev18-py3-none-any.whl
+export NORMA_RUNTIME_URL="<assigned runtime URL>"
+export NORMA_AGENT_KEY="<scoped Agent Key>"
 ```
 
-The alpha download endpoint is live.
+Use the exact URL and key issued in your workspace connection settings. Keep the key in server-side environment or secret storage. HTTPS is required except for loopback development.
 
-Use the exact runtime URL and scoped key issued by Console. HTTPS is required,
-except for loopback development. Agent identity is an explicit argument and is
-independent of connection configuration. The hosted gateway authorizes the key,
-agent and account; the SDK never chooses a tenant or sends a tenant override.
+## Configure and validate
+
+Follow the [configuration guide](../docs/declarative-instrumentation.md) to bind an existing agent identity, application entrypoint, and selected functions. Use the exact registered agent name. Startup validates the identity and Rules; it does not create agents or attach Rules. Set `schemas.publish: true` only when you intend to update compatible Step schemas on an existing agent.
+
+Validate files offline before startup with `norma config validate ./norma-agents`. Validation checks configuration without reading Norma credentials, importing application modules, resolving bindings, or contacting the runtime. Read [validation details](../docs/configuration-validation.md) and the [configuration reference](../docs/configuration-ux.md) for supported fields and selectors.
+
+```python
+import norma
+
+configured = await norma.aconfigure(
+    "norma-agents",
+    bindings={"application": application, "tools": tools},
+)
+try:
+    await application.serve()
+finally:
+    receipts = await configured.aclose()
+```
+
+Configure once for the process lifetime; serve requests through the bound entrypoints and close the handle during shutdown. Use `norma.configure(...)` for synchronous setup. The configuration guide documents per-agent connections and framework bindings.
+
+## Advanced SDK: direct clients and checkpoints
+
+Use the manual API when you need explicit client control, schema registration, or an integration outside the configuration model. Do not bind the same function both manually and through configuration. Define checkpoints before initializing the session:
 
 ```python
 import norma
@@ -36,28 +54,7 @@ finally:
     receipt = norma.shutdown()
 ```
 
-Define checkpoints before initialization so their schemas are registered. Rules are
-created and attached in Console. Initialization errors must be resolved before a
-checkpoint can execute. Registration permissions remain enforced by the gateway.
-Explicit `runtime_url` and `agent_key` arguments override the two environment values.
-There is no authentication-type setting or configurable credential header.
-
-For pure authored-rule checks and the opt-in Console controls receipt/evidence flow, see the [controls guide](../docs/controls.md). The controls option only negotiates read/check projections; authoring and changing per-agent values remain Console operations.
-
-For explicit execution decisions:
-
-```python
-from norma import NormaClient, Step, checks
-
-async def proposed_action():
-    async with NormaClient() as client:
-        decision = await checks.check(
-            client, "customer-service-agent",
-            Step(type="tool", name="send_message", input={"text": "Hello"}), "pre",
-        )
-        if decision.allowed:
-            return your_application.send_message("Hello")
-```
+For an explicit decision in application code, use `checks.check(...)`; the caller must inspect the decision before executing the action. See [Advanced SDK](https://norma-platform.cloud/docs/sdk-advanced) for the TypeScript equivalent and the [Controls guide](../docs/controls.md) for typed Rule values.
 
 ## Recover from a schema conflict
 
@@ -135,17 +132,17 @@ type from the referenced question. Keep thresholds, evidence paths, scope,
 actions and other behavior-changing settings explicit. The [controls
 example](../docs/controls.md#author-a-rule-and-inspect-its-frozen-runtime-values)
 uses the current `condition` syntax; historical expanded definitions remain readable.
-Version `8.7.1.dev4` also accepts omitted execution in the local
-`validate_authored_controls` helper. The older `8.7.1.dev3` download accepts
-omitted execution in `RuleDefinition`, but its separate control helper requires
-explicit `"execution": "server"`. Compact rules authored directly in Console do
-not depend on that local helper.
+Console-authored compact Rules use hosted execution by default. Local rule helpers
+validate definitions; they do not publish a Rule or change its Console attachment.
 
 A pre-stage failure prevents the action. A post-stage failure blocks the returned
 result after the action already ran; it cannot roll back the action. The SDK never
 retries the user action. Low-level `checks.check` returns a decision: its caller must
-inspect `allowed` before executing. `operations.create` records a proposed tool action,
-requires blocking error/unresolved policies and does not execute the tool.
+inspect `allowed` before executing. `operations.create` records a proposed tool action
+and does not execute the tool. Keep `error_policy="block"`; evaluator errors do not
+become allowed decisions. `unresolved_policy` defaults to `"block"` and accepts
+explicit `"allow"` for engine unresolved-check handling. That setting does not allow
+check errors.
 
 Finish checks have a distinct completion contract: `check_finish` returns an explicit
 `unavailable` / `finished_unverified` result when confirmation is unavailable. It may
@@ -153,12 +150,41 @@ allow the turn to finish, but never claims a verified result or executes an acti
 Event delivery failures cannot change a Rule decision. Inspect flush/shutdown receipts
 for pending, dropped or unconfirmed events rather than assuming persistence.
 
-## Optional adapters
+### Streamed finish checks
+
+Version 2 declarative configuration also supports finish checks on sync and async
+generator entrypoints. Each yielded chunk is passed through unchanged. By default,
+the SDK collects string chunks in order, bounded to 8,000 Unicode code points, and
+checks the aggregate once when the generator ends naturally. `mode: last` keeps only
+the last selected string. A `text` selector reads the current chunk from `result`;
+`missing: skip` skips only an absent selected path or a null selected value. A selected
+non-string value, selector error, or size overflow raises `CheckError`, closes the
+generator for cleanup, and sends no partial finish check.
+
+Early close, cancellation, and generator errors do not trigger a finish check. A sync
+generator's `StopIteration.value` is preserved and is not added to the streamed text.
+Streamed finishes do not automatically continue a held turn. With `on_hold: raise`, a
+hold raises `FinishHeldError` after the last yielded chunk; its `original_result` is
+the collected text. `on_verdict` is optional for this mode, and required with
+`on_hold: return`. Without a callback, an unavailable check retains the SDK's existing
+fail-open behavior; normal exhaustion alone does not prove a pass.
+
+See the [streamed finish example](examples/streamed_finish/README.md) and its
+[downloadable JSON config](examples/streamed_finish/config/example-agent.json) for a
+minimal setup with fresh session and turn IDs and no custom verdict callback.
+
+## Framework adapters
 
 Extras are `strands-agents`, `google-adk`, `pydantic-ai`, `openai-agents`, and `otel`.
 Install only the adapters your application uses. Strands exposes `NormaPlugin` and
 `NormaSteeringHandler`; Google ADK exposes `NormaPlugin`. Finish adapters retain
 completed tool history when asking a model to revise its final answer.
+
+The direct Strands `NormaSteeringHandler` is an SDK-only executable callback; the
+declarative adapter does not accept a handler binding. The configured adapter was
+tested with Strands 1.61.1. Strands 1.28.0 imports but rejects the configured adapter
+before invocation, while 1.26.0 lacks the plugins surface, so the minimum supported
+Strands version remains unverified.
 
 ## Development
 

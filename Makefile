@@ -1,6 +1,9 @@
-.PHONY: check python-check typescript-check build
+.PHONY: check schema-check python-check typescript-check build
 
-check: python-check typescript-check
+check: schema-check python-check typescript-check
+
+schema-check:
+	python3 tools/sync_instrumentation_schema.py --check
 
 python-check:
 	$(MAKE) -C python check

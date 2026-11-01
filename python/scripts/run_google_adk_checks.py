@@ -7,14 +7,18 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 
 def main() -> None:
     package = Path(__file__).resolve().parents[1]
-    wheels = list((package / 'dist').glob('norma_sdk-*.whl'))
+    version = tomllib.loads((package / 'pyproject.toml').read_text())['project']['version']
+    expected_wheel = f'norma_sdk-{version}-py3-none-any.whl'
+    wheels = [wheel for wheel in (package / 'dist').glob('norma_sdk-*.whl')
+              if wheel.name == expected_wheel]
     if len(wheels) != 1:
-        raise SystemExit('Expected one built Norma wheel')
+        raise SystemExit(f'Expected current SDK wheel {expected_wheel} in dist/')
     versions = sys.argv[1:] or ['1.7.0', '2.12.0']
     environment = {key: value for key, value in os.environ.items()
                    if not key.startswith(('GOOGLE_', 'GEMINI_', 'OTEL_')) and key != 'PYTHONPATH'}

@@ -35,6 +35,9 @@ export interface RuleMatch {
 export type CheckResult = RuleMatch;
 export interface CheckRequest {
   stage: "pre" | "post";
+  /** Optional event correlation only; these values are not sent as server identity. */
+  traceId?: string;
+  spanId?: string;
   step: { type: string; name: string; input: JsonValue; output?: JsonValue; groundTruth?: JsonValue;
     context?: JsonObject | null; tools?: JsonObject[] | null };
   targetType?: string | null; targetId?: string | null;
@@ -68,7 +71,7 @@ export interface AgentsApi {
       controlResolutions?: ControlReceipt[] | null }>;
   get(request: {agentName: string}, options?: RequestOptions): Promise<{agent: Agent; evaluators?: EvaluatorSchema[]; steps?: StepSchema[]}>;
   update(request: {agentName: string; body: {removeEvaluators?: string[]; removeSteps?: StepKey[]}}, options?: RequestOptions): Promise<{evaluatorsRemoved?: string[]; stepsRemoved?: StepKey[]}>;
-  listRules(request: {agentName: string}, options?: RequestOptions): Promise<{rules: Rule[];
+  listRules(request: {agentName: string; enabledState?: "enabled" | "disabled" | "all"; targetType?: string | null; targetId?: string | null}, options?: RequestOptions): Promise<{rules: Rule[];
     controlContract?: "rule-controls-v1" | null; agentGeneration?: string | null;
     controlResolutions?: ControlReceipt[] | null}>;
   listEvaluators(request: {agentName: string}, options?: RequestOptions): Promise<{evaluators: EvaluatorSchema[]}>;

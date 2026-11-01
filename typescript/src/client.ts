@@ -5,7 +5,13 @@ import { buildCheckEvents, CheckReportQueue } from "./internal/check-events";
 import { HostedOperationsApi, type OperationsApi } from "./internal/operations";
 import type { ChecksApi, AgentsApi, RuleBindingsApi, EvaluatorsApi, ObservabilityApi } from "./public-api";
 import {createChecks, decisionFromWire, publicApis} from "./internal/public-adapters";
-import { CONTROL_CONTRACT_HEADER, isControlContractRoute, requireControlAcknowledgement, type ControlContract } from "./control-contract";
+import {
+  CONTROL_CONTRACT_HEADER, isControlContractRoute, normalizeControlContract, requireControlAcknowledgement,
+  type ControlContract, type ControlContractInput,
+} from "./control-contract";
+import { extractSecurity, resolveGlobalSecurity } from "./generated/lib/security";
+import { StepSchema$inboundSchema, type StepSchema } from "./generated/models/step-schema";
+import { NormaAPIError } from "./api-error";
 export type { AgentsApi, RuleBindingsApi, EvaluatorsApi, ObservabilityApi } from "./public-api";
 import type { DeliveryReceipt } from "./check-events";
 import type { Logger } from "./generated/lib/logger";
@@ -24,14 +30,14 @@ export interface NormaInitOptions {
   /** Report observed rule results to this Norma server. Reporting never changes decisions. */
   observabilityEnabled?: boolean;
   /** Require versioned control receipts/evidence from reviewed runtime routes. */
-  controlContract?: ControlContract;
+  controlContract?: ControlContractInput;
   userAgent?: string;
   debugLogger?: Logger;
   httpClient?: HTTPClient;
 }
 
-export type NormaConfig = Omit<NormaInitOptions, "agentName" | "runtimeUrl"> & {
-  agentName: string; runtimeUrl: string;
+export type NormaConfig = Omit<NormaInitOptions, "agentName" | "runtimeUrl" | "controlContract"> & {
+  agentName: string; runtimeUrl: string; controlContract?: ControlContract;
 };
 
 function environment(): Record<string, string | undefined> {
@@ -47,6 +53,70 @@ export function checkFor(client: NormaClient): NormaSDK["checks"] {
 const connections = new WeakMap<NormaClient, NormaConfig>();
 /** Internal transport configuration, deliberately absent from the package exports. */
 export function connectionFor(client: NormaClient): NormaConfig | undefined { return connections.get(client); }
+/** Internal per-invocation operations facade; it reuses the initialized SDK transport and credentials. */
+export function operationsFor(client: NormaClient, target?: { targetType?: string; targetId?: string }): OperationsApi {
+  const sdk = runtimes.get(client);
+  const identity = connections.get(client);
+  if (!sdk || !identity) throw new Error("NormaClient is not initialized.");
+  if (Boolean(target?.targetType) !== Boolean(target?.targetId)) throw new TypeError("Both target fields are required.");
+  return new HostedOperationsApi(sdk, {
+    agentName: identity.agentName,
+    ...(target?.targetType ? { targetType: target.targetType, targetId: target.targetId } : {
+      ...(identity.targetType === undefined ? {} : { targetType: identity.targetType, targetId: identity.targetId }),
+    }),
+  });
+}
+/** Publish additive schemas through this client's guarded SDK transport. */
+export async function publishAgentStepsFor(client: NormaClient, steps: StepSchema[]): Promise<StepSchema[]> {
+  const sdk = runtimes.get(client);
+  const identity = connections.get(client);
+  if (!sdk || !identity) throw new Error("NormaClient is not initialized.");
+  const key = await extractSecurity(sdk._options.apiKeyHeader);
+  const security = resolveGlobalSecurity(key == null ? {} : { apiKeyHeader: key });
+  const context = {
+    options: sdk._options,
+    baseURL: sdk._baseURL?.toString() ?? "",
+    operationID: "norma_publish_agent_steps",
+    oAuth2Scopes: null,
+    resolvedSecurity: security,
+    securitySource: sdk._options.apiKeyHeader,
+    retryConfig: { strategy: "none" as const },
+  };
+  const body = JSON.stringify({ steps: steps.map(step => ({
+    type: step.type,
+    name: step.name,
+    ...(step.description === undefined ? {} : { description: step.description }),
+    ...(step.inputSchema === undefined ? {} : { input_schema: step.inputSchema }),
+    ...(step.outputSchema === undefined ? {} : { output_schema: step.outputSchema }),
+    ...(step.metadata === undefined ? {} : { metadata: step.metadata }),
+  })) });
+  const request = sdk._createRequest(context, {
+    method: "PUT",
+    path: `/api/v1/agents/${encodeURIComponent(identity.agentName)}/steps`,
+    security,
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body,
+    userAgent: sdk._options.userAgent,
+    timeoutMs: sdk._options.timeoutMs ?? -1,
+  });
+  if (!request.ok) throw request.error;
+  const result = await sdk._do(request.value, {
+    context,
+    errorCodes: ["4XX", "5XX"],
+    retryConfig: { strategy: "none" },
+    retryCodes: [],
+  });
+  if (!result.ok) throw result.error;
+  if (result.value.status !== 200) {
+    const responseBody = await result.value.text().catch(() => "");
+    throw NormaAPIError.fromResponse(result.value, responseBody, request.value.url);
+  }
+  const payload: unknown = await result.value.json();
+  if (!payload || typeof payload !== "object" || !Array.isArray((payload as { steps?: unknown }).steps)) {
+    throw new TypeError("Schema publication response must contain a steps array.");
+  }
+  return (payload as { steps: unknown[] }).steps.map(step => StepSchema$inboundSchema.parse(step));
+}
 
 export class NormaClient {
   private revision = 0;
@@ -79,9 +149,7 @@ export class NormaClient {
       return key;
     } : credential;
     if (!agentName?.trim()) throw new TypeError("Provide agentName for your registered Norma agent.");
-    if (input.controlContract !== undefined && input.controlContract !== "rule-controls-v1") {
-      throw new TypeError("controlContract must be 'rule-controls-v1'.");
-    }
+    const controlContract = normalizeControlContract(input.controlContract);
     if (!runtimeUrl?.trim()) throw new TypeError("Set NORMA_RUNTIME_URL or provide runtimeUrl from your Norma connection settings.");
     if (!agentKey || (typeof agentKey === "string" && !agentKey.trim())) throw new TypeError("Set NORMA_AGENT_KEY or provide agentKey.");
     let endpoint: URL;
@@ -89,7 +157,13 @@ export class NormaClient {
     if ((endpoint.protocol !== "https:" && !(endpoint.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname))) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
       throw new TypeError("Norma runtimeUrl must use HTTPS (HTTP only for loopback development), without credentials, query or fragment.");
     }
-    const options: NormaConfig = { ...input, agentName, runtimeUrl, ...(agentKey === undefined ? {} : { agentKey }) };
+    const { controlContract: _requestedControlContract, ...inputOptions } = input;
+    void _requestedControlContract;
+    const options: NormaConfig = {
+      ...inputOptions, agentName, runtimeUrl,
+      ...(controlContract === undefined ? {} : { controlContract }),
+      ...(agentKey === undefined ? {} : { agentKey }),
+    };
     if (Boolean(options.targetType) !== Boolean(options.targetId)) {
       throw new Error("targetType and targetId must be supplied together.");
     }

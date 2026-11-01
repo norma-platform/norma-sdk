@@ -1,0 +1,1042 @@
+{
+  "cases": [
+    {
+      "name": "json-default-step-type",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\"}}}",
+      "valid": true,
+      "normalized": {
+        "version": 1,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "yaml-core-strings-and-date-like-string",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    state:\n      yes_word: yes\n      on_word: on\n      truth: true\n      date_like: 2026-10-29\n",
+      "valid": true,
+      "normalized": {
+        "version": 1,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "step_type": "tool",
+            "state": {
+              "yes_word": "yes",
+              "on_word": "on",
+              "truth": true,
+              "date_like": "2026-10-29"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "yaml-anchor-alias-shared-state",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    state: &shared {mode: safe}\n  receive:\n    target: app.receive\n    state: *shared\n",
+      "valid": true,
+      "normalized": {
+        "version": 1,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "step_type": "tool",
+            "state": {
+              "mode": "safe"
+            }
+          },
+          "receive": {
+            "target": "app.receive",
+            "step_type": "tool",
+            "state": {
+              "mode": "safe"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "yaml-merge-key-is-literal",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    state: {<<: {mode: safe}}\n",
+      "valid": true,
+      "normalized": {
+        "version": 1,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "step_type": "tool",
+            "state": {
+              "<<": {
+                "mode": "safe"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "yaml-explicit-merge-tag-rejected",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: tools.send\n    state: {!!merge \"<<\": {mode: safe}}\n",
+      "valid": false
+    },
+    {
+      "name": "yaml-verbatim-merge-tag-rejected",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: tools.send\n    state: {!<tag:yaml.org,2002:merge> \"<<\": {mode: safe}}\n",
+      "valid": false
+    },
+    {
+      "name": "json-duplicate-escaped-key",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{},\"\\u0076ersion\":1}",
+      "valid": false
+    },
+    {
+      "name": "yaml-duplicate-key",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints: {}\ncheckpoints: {}\n",
+      "valid": false
+    },
+    {
+      "name": "yaml-multiple-documents",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints: {}\n---\nversion: 1\nentrypoints: [app.run]\ncheckpoints: {}\n",
+      "valid": false
+    },
+    {
+      "name": "yaml-unsupported-tag",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    state: {token: !secret password}\n",
+      "valid": false
+    },
+    {
+      "name": "yaml-1.1-directive",
+      "format": "yaml",
+      "source": "%YAML 1.1\n---\nversion: 1\nentrypoints: [app.run]\ncheckpoints: {}\n",
+      "valid": false
+    },
+    {
+      "name": "yaml-integer-negative-zero",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    state: {n: -0}\n",
+      "valid": false
+    },
+    {
+      "name": "yaml-anchor-cycle",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    state: &cycle {self: *cycle}\n",
+      "valid": false
+    },
+    {
+      "name": "json-version-boolean",
+      "format": "json",
+      "source": "{\"version\":true,\"entrypoints\":[\"app.run\"],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "json-version-integral-float",
+      "format": "json",
+      "source": "{\"version\":1.0,\"entrypoints\":[\"app.run\"],\"checkpoints\":{}}",
+      "valid": true,
+      "normalized": {
+        "version": 1.0,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {}
+      }
+    },
+    {
+      "name": "json-version-noninteger-float",
+      "format": "json",
+      "source": "{\"version\":1.5,\"entrypoints\":[\"app.run\"],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "json-unknown-field",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{},\"extra\":true}",
+      "valid": false
+    },
+    {
+      "name": "json-invalid-target",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"send\"}}}",
+      "valid": false
+    },
+    {
+      "name": "json-null-state",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state\":null}}}",
+      "valid": false
+    },
+    {
+      "name": "json-nonfinite-number",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state\":{\"n\":NaN}}}}",
+      "valid": false
+    },
+    {
+      "name": "json-unsafe-integer",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state\":{\"n\":9007199254740992}}}}",
+      "valid": false
+    },
+    {
+      "name": "json-negative-zero",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state\":{\"n\":-0}}}}",
+      "valid": false
+    },
+    {
+      "name": "yaml-negative-zero-float",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    state: {n: -0.0}\n",
+      "valid": false
+    },
+    {
+      "name": "v2-json-value-sources-and-settings",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"edit\":{\"target\":\"tools.edit\",\"action\":{\"kind\":\"edit\",\"target\":{\"path\":[\"args\",0,\"path\"]},\"command\":\"write\",\"cwd\":{\"value\":null}},\"state_from\":{\"path\":[\"context\",\"facts\"]}}},\"connection\":{\"runtime_url\":{\"env\":\"NORMA_RUNTIME_URL\"},\"agent_key\":{\"env\":\"NORMA_AGENT_KEY\"},\"timeout_ms\":5000,\"target_type\":\"repository\",\"target_id\":\"repo-7\",\"control_contract\":\"rule-controls-v1\"},\"telemetry\":{\"enabled\":true},\"refresh\":{\"interval_seconds\":30}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "edit": {
+            "target": "tools.edit",
+            "action": {
+              "kind": "edit",
+              "target": {
+                "path": [
+                  "args",
+                  0,
+                  "path"
+                ]
+              },
+              "command": "write",
+              "cwd": {
+                "value": null
+              }
+            },
+            "state_from": {
+              "path": [
+                "context",
+                "facts"
+              ]
+            },
+            "step_type": "tool"
+          }
+        },
+        "connection": {
+          "runtime_url": {
+            "env": "NORMA_RUNTIME_URL"
+          },
+          "agent_key": {
+            "env": "NORMA_AGENT_KEY"
+          },
+          "timeout_ms": 5000,
+          "target_type": "repository",
+          "target_id": "repo-7",
+          "control_contract": "rule-controls-v1"
+        },
+        "telemetry": {
+          "enabled": true
+        },
+        "refresh": {
+          "interval_seconds": 30
+        }
+      }
+    },
+    {
+      "name": "v2-yaml-binding-provider-and-literal-action",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: tools.send\n    action:\n      kind: shell\n      target: bin/deploy\n      command: {value: deploy}\n    state_from:\n      provider: app.capture_state\nconnection:\n  runtime_url: https://runtime.example\n  agent_key:\n    binding: secrets.agent_key\ntelemetry:\n  enabled: false\nrefresh:\n  interval_seconds: 0\n",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "tools.send",
+            "action": {
+              "kind": "shell",
+              "target": "bin/deploy",
+              "command": {
+                "value": "deploy"
+              }
+            },
+            "state_from": {
+              "provider": "app.capture_state"
+            },
+            "step_type": "tool"
+          }
+        },
+        "connection": {
+          "runtime_url": "https://runtime.example",
+          "agent_key": {
+            "binding": "secrets.agent_key"
+          }
+        },
+        "telemetry": {
+          "enabled": false
+        },
+        "refresh": {
+          "interval_seconds": 0
+        }
+      }
+    },
+    {
+      "name": "v2-json-entrypoint-context-target-and-trace",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"context\":{\"value\":{\"request_id\":\"req-1\"}},\"target_scope\":{\"type\":{\"value\":\"repository\"},\"id\":{\"path\":[\"args\",0,\"repository_id\"]}},\"trace\":{\"trace_id\":{\"path\":[\"context\",\"trace_id\"]},\"span_id\":{\"path\":[\"context\",\"span_id\"]}}}],\"checkpoints\":{}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.run",
+            "context": {
+              "value": {
+                "request_id": "req-1"
+              }
+            },
+            "target_scope": {
+              "type": {
+                "value": "repository"
+              },
+              "id": {
+                "path": [
+                  "args",
+                  0,
+                  "repository_id"
+                ]
+              }
+            },
+            "trace": {
+              "trace_id": {
+                "path": [
+                  "context",
+                  "trace_id"
+                ]
+              },
+              "span_id": {
+                "path": [
+                  "context",
+                  "span_id"
+                ]
+              }
+            }
+          }
+        ],
+        "checkpoints": {}
+      }
+    },
+    {
+      "name": "v2-json-mapped-checkpoint-fields",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"path\":[\"args\",0]},\"output_from\":{\"path\":[\"result\"]},\"context_from\":{\"provider\":\"app.context\"},\"tools_from\":{\"value\":[{\"name\":\"lookup\"}]},\"ground_truth_from\":{\"path\":[\"context\",\"expected\"]}}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "input_from": {
+              "path": [
+                "args",
+                0
+              ]
+            },
+            "output_from": {
+              "path": [
+                "result"
+              ]
+            },
+            "context_from": {
+              "provider": "app.context"
+            },
+            "tools_from": {
+              "value": [
+                {
+                  "name": "lookup"
+                }
+              ]
+            },
+            "ground_truth_from": {
+              "path": [
+                "context",
+                "expected"
+              ]
+            },
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "v2-json-inline-typescript-native-options",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"options\":{\"stepName\":\"send\",\"stepType\":\"tool\",\"targetType\":\"repository\",\"targetId\":\"repo-1\",\"client\":{\"binding\":\"clients.support\"},\"action\":{\"binding\":\"app.action\"},\"state\":{\"binding\":\"app.state\"}}}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "options": {
+              "stepName": "send",
+              "stepType": "tool",
+              "targetType": "repository",
+              "targetId": "repo-1",
+              "client": {
+                "binding": "clients.support"
+              },
+              "action": {
+                "binding": "app.action"
+              },
+              "state": {
+                "binding": "app.state"
+              }
+            },
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "v2-json-inline-python-native-options",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"options\":{\"action_kind\":\"edit\",\"action_target_arg\":\"path\",\"state\":{\"binding\":\"app.state\"}}}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "options": {
+              "action_kind": "edit",
+              "action_target_arg": "path",
+              "state": {
+                "binding": "app.state"
+              }
+            },
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "v2-rejects-state-source-conflict",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state\":{},\"state_from\":{\"value\":{}}}}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-unknown-value-source-key",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state_from\":{\"path\":[\"context\",\"facts\"],\"fallback\":{}}}}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-incomplete-target-pair",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{},\"connection\":{\"target_type\":\"repository\"}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-unknown-action-kind",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    action:\n      kind: teleport\n",
+      "valid": false
+    },
+    {
+      "name": "v2-json-turn-schema-operation-and-openai-adapter",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"returns\":\"promise\",\"turn\":{\"session_id\":{\"path\":[\"args\",0]},\"turn_id\":{\"path\":[\"args\",1]},\"max_continuations\":2,\"finish\":{\"driver\":\"generic\",\"final_message\":{\"path\":[\"result\"]},\"on_hold\":\"raise\"}}}],\"checkpoints\":{},\"schemas\":{\"publish\":false,\"steps\":[{\"type\":\"tool\",\"name\":\"send\",\"input_schema\":{\"type\":\"object\"}}]},\"operations\":{\"create\":{\"target\":\"app.create\",\"returns\":\"promise\",\"operation_key\":{\"path\":[\"args\",0]},\"input\":{\"path\":[\"args\"]},\"observations\":{\"attempted\":{\"event_key\":{\"value\":\"create-attempt\"},\"summary\":{\"value\":\"Creating\"}}}}},\"adapters\":{\"application\":{\"kind\":\"openai_agents\",\"agent\":{\"binding\":\"app.agent\"},\"tools\":{\"send\":{\"description\":\"Send a message\",\"parameters\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false},\"execute\":{\"binding\":\"app.send\"}}}}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.run",
+            "returns": "promise",
+            "turn": {
+              "session_id": {
+                "path": [
+                  "args",
+                  0
+                ]
+              },
+              "turn_id": {
+                "path": [
+                  "args",
+                  1
+                ]
+              },
+              "max_continuations": 2,
+              "finish": {
+                "driver": "generic",
+                "final_message": {
+                  "path": [
+                    "result"
+                  ]
+                },
+                "on_hold": "raise"
+              }
+            }
+          }
+        ],
+        "checkpoints": {},
+        "schemas": {
+          "publish": false,
+          "steps": [
+            {
+              "type": "tool",
+              "name": "send",
+              "input_schema": {
+                "type": "object"
+              }
+            }
+          ]
+        },
+        "operations": {
+          "create": {
+            "target": "app.create",
+            "returns": "promise",
+            "operation_key": {
+              "path": [
+                "args",
+                0
+              ]
+            },
+            "input": {
+              "path": [
+                "args"
+              ]
+            },
+            "observations": {
+              "attempted": {
+                "event_key": {
+                  "value": "create-attempt"
+                },
+                "summary": {
+                  "value": "Creating"
+                }
+              }
+            }
+          }
+        },
+        "adapters": {
+          "application": {
+            "kind": "openai_agents",
+            "agent": {
+              "binding": "app.agent"
+            },
+            "tools": {
+              "send": {
+                "description": "Send a message",
+                "parameters": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": false
+                },
+                "execute": {
+                  "binding": "app.send"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "v2-rejects-held-return-without-verdict-callback",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"final_message\":{\"path\":[\"result\"]},\"on_hold\":\"return\"}}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "v2-stream-finish-async-iterable-last-selected-text",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.stream\",\"returns\":\"async_iterable\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"driver\":\"generic\",\"stream\":{\"text\":{\"path\":[\"result\",\"choices\",0,\"delta\"]},\"mode\":\"last\",\"max_chars\":8000,\"missing\":\"skip\"},\"on_hold\":\"return\",\"on_verdict\":{\"binding\":\"callbacks.finished\"}}}}],\"checkpoints\":{}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.stream",
+            "returns": "async_iterable",
+            "turn": {
+              "session_id": {
+                "value": "s"
+              },
+              "turn_id": {
+                "value": "t"
+              },
+              "finish": {
+                "driver": "generic",
+                "stream": {
+                  "text": {
+                    "path": [
+                      "result",
+                      "choices",
+                      0,
+                      "delta"
+                    ]
+                  },
+                  "mode": "last",
+                  "max_chars": 8000,
+                  "missing": "skip"
+                },
+                "on_hold": "return",
+                "on_verdict": {
+                  "binding": "callbacks.finished"
+                }
+              }
+            }
+          }
+        ],
+        "checkpoints": {}
+      }
+    },
+    {
+      "name": "v2-stream-finish-defaults",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints:\n  - target: app.stream\n    turn:\n      session_id: {value: s}\n      turn_id: {value: t}\n      finish:\n        stream: {}\n        on_hold: raise\ncheckpoints: {}\n",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.stream",
+            "turn": {
+              "session_id": {
+                "value": "s"
+              },
+              "turn_id": {
+                "value": "t"
+              },
+              "finish": {
+                "stream": {},
+                "on_hold": "raise"
+              }
+            }
+          }
+        ],
+        "checkpoints": {}
+      }
+    },
+    {
+      "name": "v2-rejects-stream-finish-with-final-message",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.stream\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"stream\":{},\"final_message\":{\"path\":[\"result\"]},\"on_hold\":\"raise\"}}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-stream-finish-with-continuation",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.stream\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"stream\":{},\"continue_with\":{\"binding\":\"callbacks.continue\"},\"on_hold\":\"raise\"}}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-stream-finish-native-driver",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.stream\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"driver\":\"openai_agents\",\"adapter\":\"runner\",\"stream\":{},\"on_hold\":\"raise\"}}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-stream-text-unknown-value-root",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.stream\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"stream\":{\"text\":{\"path\":[\"bogus\",0]}},\"on_hold\":\"raise\"}}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-stream-held-return-without-callback",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.stream\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"stream\":{},\"on_hold\":\"return\"}}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-operation-action-cwd-json",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{},\"operations\":{\"save\":{\"target\":\"app.save\",\"operation_key\":{\"value\":\"key\"},\"action\":{\"kind\":\"edit\",\"cwd\":\"/tmp\"}}}}",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-operation-action-cwd-yaml",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints: [app.run]\ncheckpoints: {}\noperations:\n  save:\n    target: app.save\n    operation_key: {value: key}\n    action:\n      kind: edit\n      cwd: /tmp\n",
+      "valid": false
+    },
+    {
+      "name": "v2-json-input-params-and-friendly-aliases",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"parameter_names\":[\"request\"],\"turn\":{\"session_id\":{\"path\":[\"params\",\"request\",\"session_id\"]},\"turn_id\":{\"path\":[\"input\",\"turn_id\"]},\"application\":\"norma-test\",\"platform\":\"norma-test\",\"application_version\":\"v1\",\"platform_version\":\"v1\",\"finish\":{\"final_message\":{\"path\":[\"result\"]},\"on_hold\":\"raise\"}}}],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"parameter_names\":[\"request\"],\"input_from\":{\"path\":[\"input\",\"id\"]}}},\"operations\":{\"create\":{\"target\":\"app.create\",\"parameter_names\":[\"request\"],\"operation_key\":{\"path\":[\"params\",\"request\",\"key\"]}}},\"connection\":{\"control_contract\":\"rule-controls\"}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.run",
+            "parameter_names": [
+              "request"
+            ],
+            "turn": {
+              "session_id": {
+                "path": [
+                  "params",
+                  "request",
+                  "session_id"
+                ]
+              },
+              "turn_id": {
+                "path": [
+                  "input",
+                  "turn_id"
+                ]
+              },
+              "platform": "norma-test",
+              "platform_version": "v1",
+              "finish": {
+                "final_message": {
+                  "path": [
+                    "result"
+                  ]
+                },
+                "on_hold": "raise"
+              }
+            }
+          }
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "parameter_names": [
+              "request"
+            ],
+            "input_from": {
+              "path": [
+                "input",
+                "id"
+              ]
+            },
+            "step_type": "tool"
+          }
+        },
+        "operations": {
+          "create": {
+            "target": "app.create",
+            "parameter_names": [
+              "request"
+            ],
+            "operation_key": {
+              "path": [
+                "params",
+                "request",
+                "key"
+              ]
+            }
+          }
+        },
+        "connection": {
+          "control_contract": "rule-controls-v1"
+        }
+      }
+    },
+    {
+      "name": "v2-yaml-input-root-and-parameter-names",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints:\n  - target: app.run\n    parameter_names: [request, options]\n    context: {path: [input, tenant_id]}\ncheckpoints:\n  send:\n    target: app.send\n    parameter_names: [request]\n    input_from: {path: [input, id]}\n",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.run",
+            "parameter_names": [
+              "request",
+              "options"
+            ],
+            "context": {
+              "path": [
+                "input",
+                "tenant_id"
+              ]
+            }
+          }
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "parameter_names": [
+              "request"
+            ],
+            "input_from": {
+              "path": [
+                "input",
+                "id"
+              ]
+            },
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "v2-json-allows-dollar-prefixed-parameter-name",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"parameter_names\":[\"$request\"],\"turn\":{\"session_id\":{\"path\":[\"params\",\"$request\",\"session_id\"]},\"turn_id\":{\"path\":[\"input\",\"turn_id\"]},\"finish\":{\"final_message\":{\"path\":[\"result\"]},\"on_hold\":\"raise\"}}}],\"checkpoints\":{}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.run",
+            "parameter_names": [
+              "$request"
+            ],
+            "turn": {
+              "session_id": {
+                "path": [
+                  "params",
+                  "$request",
+                  "session_id"
+                ]
+              },
+              "turn_id": {
+                "path": [
+                  "input",
+                  "turn_id"
+                ]
+              },
+              "finish": {
+                "final_message": {
+                  "path": [
+                    "result"
+                  ]
+                },
+                "on_hold": "raise"
+              }
+            }
+          }
+        ],
+        "checkpoints": {}
+      }
+    },
+    {
+      "name": "v2-yaml-allows-unicode-parameter-name",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints:\n  - target: app.run\n    parameter_names: [caf\u00e9]\n    turn:\n      session_id: {path: [params, caf\u00e9, session_id]}\n      turn_id: {path: [input, turn_id]}\n      finish: {final_message: {path: [result]}, on_hold: raise}\ncheckpoints: {}\n",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          {
+            "target": "app.run",
+            "parameter_names": [
+              "caf\u00e9"
+            ],
+            "turn": {
+              "session_id": {
+                "path": [
+                  "params",
+                  "caf\u00e9",
+                  "session_id"
+                ]
+              },
+              "turn_id": {
+                "path": [
+                  "input",
+                  "turn_id"
+                ]
+              },
+              "finish": {
+                "final_message": {
+                  "path": [
+                    "result"
+                  ]
+                },
+                "on_hold": "raise"
+              }
+            }
+          }
+        ],
+        "checkpoints": {}
+      }
+    },
+    {
+      "name": "v2-rejects-blank-parameter-name",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"parameter_names\":[\" \"],\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"finish\":{\"final_message\":{\"path\":[\"result\"]},\"on_hold\":\"raise\"}}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "v1-rejects-parameter-names",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"parameter_names\":[\"request\"]}}}",
+      "valid": false
+    },
+    {
+      "name": "v2-yaml-rejects-duplicate-parameter-names",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints:\n  - target: app.run\n    parameter_names: [request, request]\ncheckpoints: {}\n",
+      "valid": false
+    },
+    {
+      "name": "v2-json-rejects-unnamed-params-root",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":{\"path\":[\"params\"]}}}}",
+      "valid": false
+    },
+    {
+      "name": "v2-yaml-rejects-numeric-parameter-name",
+      "format": "yaml",
+      "source": "version: 2\nentrypoints: [app.run]\ncheckpoints:\n  send:\n    target: app.send\n    input_from: {path: [params, 0]}\n",
+      "valid": false
+    },
+    {
+      "name": "v2-rejects-conflicting-application-platform-aliases",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"turn\":{\"session_id\":{\"value\":\"s\"},\"turn_id\":{\"value\":\"t\"},\"application\":\"new-name\",\"platform\":\"old-name\"}}],\"checkpoints\":{}}",
+      "valid": false
+    },
+    {
+      "name": "valid-v2-checkpoint-input-all-kwargs",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_from\":\"all_kwargs\"}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "input_from": "all_kwargs",
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "valid-v2-checkpoint-input-all-params",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"parameter_names\":[\"recipient\",\"subject\",\"body\"],\"input_from\":\"all_params\"}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "parameter_names": [
+              "recipient",
+              "subject",
+              "body"
+            ],
+            "input_from": "all_params",
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "valid-v2-checkpoint-input-all-params-empty-names",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"parameter_names\":[],\"input_from\":\"all_params\"}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "parameter_names": [],
+            "input_from": "all_params",
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "valid-v2-checkpoint-input-schema",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\",\"required\":[\"recipient\"],\"properties\":{\"recipient\":{\"type\":\"string\"}}}}}}",
+      "valid": true,
+      "normalized": {
+        "version": 2,
+        "entrypoints": [
+          "app.run"
+        ],
+        "checkpoints": {
+          "send": {
+            "target": "app.send",
+            "input_schema": {
+              "type": "object",
+              "required": [
+                "recipient"
+              ],
+              "properties": {
+                "recipient": {
+                  "type": "string"
+                }
+              }
+            },
+            "step_type": "tool"
+          }
+        }
+      }
+    },
+    {
+      "name": "v2-rejects-nonobject-checkpoint-input-schema",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":[]}}}",
+      "valid": false
+    },
+    {
+      "name": "v1-rejects-checkpoint-input-schema",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"input_schema\":{\"type\":\"object\"}}}}",
+      "valid": false
+    }
+  ]
+}

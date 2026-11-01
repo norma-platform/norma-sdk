@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "connection": { "control_contract": "rule-controls" },
+  "entrypoints": [
+    {
+      "target": "application.primaryChat",
+      "context": { "provider": "callbacks.requestContext" },
+      "trace": {
+        "trace_id": { "path": ["input", "trace_id"] },
+        "span_id": { "path": ["input", "span_id"] }
+      },
+      "turn": {
+        "session_id": { "path": ["input", "session_id"] },
+        "turn_id": { "path": ["input", "turn_id"] },
+        "user_request": { "path": ["input", "prompt"] },
+        "application": "typescript-local-omlx-trial",
+        "application_version": "configuration-parity",
+        "max_continuations": 1,
+        "finish": {
+          "final_message": { "path": ["result"] },
+          "on_hold": "raise",
+          "on_verdict": { "binding": "callbacks.recordVerdict" }
+        }
+      }
+    }
+  ],
+  "checkpoints": {}
+}

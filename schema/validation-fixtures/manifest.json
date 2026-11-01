@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "valid-json-minimal",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{}}",
+      "valid": true
+    },
+    {
+      "name": "valid-yaml-minimal",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints: {}\n",
+      "valid": true
+    },
+    {
+      "name": "invalid-json-syntax-position",
+      "format": "json",
+      "source": "{\n  \"version\": 1,\n  \"entrypoints\": [\n",
+      "valid": false,
+      "code": "syntax",
+      "line": 4,
+      "column": 1
+    },
+    {
+      "name": "invalid-yaml-duplicate-key-position",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints: {}\nversion: 2\n",
+      "valid": false,
+      "code": "syntax",
+      "line": 4,
+      "column": 1
+    },
+    {
+      "name": "invalid-yaml-unsafe-merge-tag",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints: {}\nvalue: {!<tag:yaml.org,2002:merge> \"<<\": {mode: unsafe}}\n",
+      "valid": false,
+      "code": "syntax",
+      "line": null,
+      "column": null
+    },
+    {
+      "name": "invalid-schema-version",
+      "format": "json",
+      "source": "{\"version\":99,\"entrypoints\":[\"app.run\"],\"checkpoints\":{}}",
+      "valid": false,
+      "code": "schema",
+      "path": "/version"
+    },
+    {
+      "name": "invalid-boolean-version",
+      "format": "json",
+      "source": "{\"version\":true,\"entrypoints\":[\"app.run\"],\"checkpoints\":{}}",
+      "valid": false,
+      "code": "schema",
+      "path": "/version"
+    },
+    {
+      "name": "invalid-object-version",
+      "format": "json",
+      "source": "{\"version\":{},\"entrypoints\":[\"app.run\"],\"checkpoints\":{}}",
+      "valid": false,
+      "code": "schema",
+      "path": "/version"
+    },
+    {
+      "name": "invalid-json-root-array",
+      "format": "json",
+      "source": "[]",
+      "valid": false,
+      "code": "schema"
+    },
+    {
+      "name": "invalid-nested-unknown-field",
+      "format": "json",
+      "source": "{\"version\":1,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"private_key\":\"dont-disclose\"}}}",
+      "valid": false,
+      "code": "schema"
+    },
+    {
+      "name": "invalid-value-source-unknown-discriminator",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[{\"target\":\"app.run\",\"context\":{\"vale\":\"x\"}}],\"checkpoints\":{}}",
+      "valid": false,
+      "code": "schema",
+      "path": "/entrypoints/0/context/vale"
+    },
+    {
+      "name": "invalid-yaml-syntax-position",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run\ncheckpoints: {}\n",
+      "valid": false,
+      "code": "syntax"
+    },
+    {
+      "name": "invalid-yaml-nan",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints: {}\nvalue: .nan\n",
+      "valid": false,
+      "code": "schema"
+    },
+    {
+      "name": "invalid-yaml-alias-cycle",
+      "format": "yaml",
+      "source": "version: 1\nentrypoints: [app.run]\ncheckpoints: &cycle {self: *cycle}\n",
+      "valid": false,
+      "code": "schema"
+    },
+    {
+      "name": "valid-literal-payload-path-key",
+      "format": "json",
+      "source": "{\"version\":2,\"entrypoints\":[\"app.run\"],\"checkpoints\":{\"send\":{\"target\":\"app.send\",\"state\":{\"path\":[\"args\",0]}}}}",
+      "valid": true
+    }
+  ]
+}

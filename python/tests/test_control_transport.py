@@ -152,6 +152,73 @@ async def test_opted_in_rule_refresh_sends_header_and_requires_both_acks() -> No
     assert seen[0].headers["X-Norma-Control-Contract"] == "rule-controls-v1"
 
 
+async def test_client_accepts_friendly_control_contract_alias_and_uses_wire_v1() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={"rules": [], "control_contract": "rule-controls-v1"},
+            headers={"X-Norma-Control-Contract": "rule-controls-v1"},
+        )
+
+    async with NormaClient(
+        URL,
+        agent_key="key",
+        control_contract="rule-controls",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        listed = await list_agent_rules_typed(client, "hosted-test-agent")
+
+    assert listed.control_contract == "rule-controls-v1"
+    assert len(seen) == 1
+    assert seen[0].headers["X-Norma-Control-Contract"] == "rule-controls-v1"
+
+
+def test_init_accepts_friendly_control_contract_alias_and_uses_wire_v1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import norma
+
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={"rules": [], "control_contract": "rule-controls-v1"},
+            headers={"X-Norma-Control-Contract": "rule-controls-v1"},
+        )
+
+    def client_factory(
+        *,
+        runtime_url: str,
+        agent_key: str,
+        control_contract: str | None = None,
+    ) -> NormaClient:
+        return NormaClient(
+            runtime_url,
+            agent_key=agent_key,
+            control_contract=control_contract,
+            transport=httpx.MockTransport(handler),
+        )
+
+    monkeypatch.setattr(norma, "NormaClient", client_factory)
+    agent = norma.init(
+        agent_name="init-alias-agent",
+        runtime_url=URL,
+        agent_key="key",
+        control_contract="rule-controls",
+        observability_enabled=False,
+        policy_refresh_interval_seconds=0,
+    )
+
+    assert agent.agent_name == "init-alias-agent"
+    assert len(seen) == 1
+    assert seen[0].headers["X-Norma-Control-Contract"] == "rule-controls-v1"
+
+
 async def test_opted_in_registration_sends_header_and_preserves_effective_rules() -> None:
     seen: list[httpx.Request] = []
 

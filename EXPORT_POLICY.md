@@ -6,10 +6,13 @@ Export a reviewed source snapshot into a new repository. Do not copy the platfor
 ## Allowed content
 
 - Root README, Apache license, this policy, and minimal repository configuration.
-- `python/`: hosted client source, public Rule and Decision models, internal wire adapters, package metadata, synthetic tests, packaging tools, README and NOTICE.
-- `typescript/`: hosted client source, public Rule and Decision models, internal wire adapters, package metadata, synthetic tests, packaging tools, README and third-party notices.
-- `docs/`: customer-facing onboarding, migration and tenancy guidance.
-- `tools/verify_export.py` and reviewed check-only workflows under `.github/workflows/`.
+- `python/`: hosted client source, public Rule and Decision models, internal wire adapters, offline configuration CLI, package metadata, synthetic tests, packaging tools, runnable examples, README and NOTICE.
+- `typescript/`: hosted client source, public Rule and Decision models, internal wire adapters, offline configuration CLI, package metadata, synthetic tests, packaging tools, runnable examples, README and third-party notices.
+- `examples/instrumentation/configuration-ux/`: the reviewed current Python and TypeScript selector examples, including synthetic JSON/YAML configs and a deterministic local transport proof.
+- `schema/instrumentation.schema.json`, parser conformance inputs, and `schema/validation-fixtures/`: the public, versioned cross-language declarative configuration contract and shared validator acceptance cases, including Rule path coverage.
+- `tests/fixtures/controls/`: synthetic cross-language Control admission cases.
+- `docs/`: customer-facing onboarding, declarative instrumentation, offline validation, migration and tenancy guidance.
+- `tools/verify_export.py`, `tools/sync_instrumentation_schema.py`, and reviewed check-only workflows under `.github/workflows/`.
 
 Upstream credit is retained in the included notices, alongside required licenses, source copyright and modification notices. Do not export upstream or private changelogs, historical handoffs, internal qualification receipts, or sealed evidence. Synthetic protocol fixtures used by public package tests are permitted.
 
